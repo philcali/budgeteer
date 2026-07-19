@@ -13,21 +13,14 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import './index.css'
 import './App.css'
 
-// Initialize repository and load data
+// Initialize repository (data loading is handled per-view)
 function AppInitializer({ children }: { children: React.ReactNode }) {
   const setRepository = useBudgetStore((state) => state.setRepository)
-  const fetchTransactions = useBudgetStore((state) => state.fetchTransactions)
-  const fetchGoals = useBudgetStore((state) => state.fetchGoals)
 
   React.useEffect(() => {
-    // Set up the repository
     const repo = new LocalStorageRepository()
     setRepository(repo)
-
-    // Pre-load data via store actions
-    fetchTransactions()
-    fetchGoals()
-  }, [setRepository, fetchTransactions, fetchGoals])
+  }, [setRepository])
 
   return <>{children}</>
 }

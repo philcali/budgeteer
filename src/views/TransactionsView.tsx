@@ -6,8 +6,9 @@ import Modal from 'react-bootstrap/Modal'
 import Form from 'react-bootstrap/Form'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
-import { Trash2, Edit } from 'lucide-react'
+import { Trash2, Edit, PiggyBank } from 'lucide-react'
 import { useBudgetStore } from '../store/useBudgetStore'
+import { formatMoney, getLocalDateString } from '../utils/formatting'
 
 // Generate list of months for the dropdown (last 12 months + current)
 function getMonthsList() {
@@ -30,6 +31,8 @@ function TransactionsView() {
   const [editingTransaction, setEditingTransaction] = useState<any>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
+  const [showSavingsModal, setShowSavingsModal] = useState(false)
+  const [selectedGoal, setSelectedGoal] = useState('')
   // Month filter state - defaults to current month
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date()
@@ -37,6 +40,7 @@ function TransactionsView() {
   })
 
   const allTransactions = useBudgetStore((state) => state.transactions)
+  const goals = useBudgetStore((state) => state.goals)
 
   // Filter transactions by selected month
   const transactions = useMemo(() => {
@@ -45,6 +49,7 @@ function TransactionsView() {
   }, [allTransactions, selectedMonth])
   const addTransaction = useBudgetStore((state) => state.addTransaction)
   const deleteTransaction = useBudgetStore((state) => state.deleteTransaction)
+  const addSavings = useBudgetStore((state) => state.addSavings)
 
   // Form state
   const [formAmount, setFormAmount] = useState('')
@@ -57,9 +62,15 @@ function TransactionsView() {
   // Error display state
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [savingsError, setSavingsError] = useState<string | null>(null)
+  const [isSubmittingSavings, setIsSubmittingSavings] = useState(false)
 
   useEffect(() => {
     useBudgetStore.getState().fetchTransactions()
+  }, [])
+
+  useEffect(() => {
+    useBudgetStore.getState().fetchGoals()
   }, [])
 
   // Initialize date to today in local timezone
@@ -124,30 +135,43 @@ function TransactionsView() {
     }
   }
 
+  // Handle savings submission
+  const handleSavingsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSavingsError(null)
+    setIsSubmittingSavings(true)
+
+    try {
+      if (!selectedGoal) {
+        setSavingsError('Please select a savings goal.')
+        return
+      }
+
+      await addSavings({
+        amount_cents: Math.round(parseFloat(formAmount) * 100),
+        category: 'Savings',
+        merchant: goals.find((g) => g.id === selectedGoal)?.name || 'Savings',
+        date: formDate,
+        goalId: selectedGoal,
+      })
+
+      setShowSavingsModal(false)
+      setSelectedGoal('')
+      setFormAmount('')
+      setFormDate(new Date().toISOString().split('T')[0])
+    } catch (error) {
+      setSavingsError('Failed to add savings. Please try again.')
+    } finally {
+      setIsSubmittingSavings(false)
+    }
+  }
+
   const confirmDelete = () => {
     if (transactionToDelete) {
       deleteTransaction(transactionToDelete)
     }
     setTransactionToDelete(null)
     setShowDeleteModal(false)
-  }
-
-  // Helper to convert ISO date to local date string without UTC offset issue
-  const getLocalDateString = (isoString: string) => {
-    const date = new Date(isoString + 'T00:00:00')
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    }).format(date)
-  }
-
-  const formatMoney = (cents: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0,
-    }).format(cents / 100)
   }
 
   return (
@@ -169,6 +193,22 @@ function TransactionsView() {
               </option>
             ))}
           </Form.Select>
+          <Button
+            variant="success"
+            size="sm"
+            className="ms-2"
+            onClick={() => {
+              setSelectedGoal('')
+              setFormAmount('')
+              setFormDate(new Date().toISOString().split('T')[0])
+              setSavingsError(null)
+              setShowSavingsModal(true)
+            }}
+            title="Add savings transaction"
+          >
+            <PiggyBank size={16} className="me-1" />
+            Savings
+          </Button>
         </Col>
       </Row>
 
@@ -204,12 +244,12 @@ function TransactionsView() {
                   <td className="text-nowrap">{t.category}</td>
                   <td>{t.description || '-'}</td>
                   <td className="text-nowrap">
-                    <span className={`badge bg-${t.type === 'income' ? 'success' : 'danger'}`}>
+                    <span className={`badge bg-${t.type === 'income' ? 'success' : t.type === 'expense' ? 'danger' : 'primary'}`}>
                       {t.type}
                     </span>
                   </td>
                   <td
-                    className={`text-nowrap ${t.type === 'income' ? 'text-success fw-bold' : 'text-danger fw-bold'} `}
+                    className={`text-nowrap ${t.type === 'income' ? 'text-success fw-bold' : t.type === 'expense' ? 'text-danger fw-bold' : 'text-primary fw-bold'} `}
                   >
                     {formatMoney(t.amount_cents)}
                   </td>
@@ -346,6 +386,74 @@ function TransactionsView() {
             </Button>
             <Button variant="primary" type="submit" disabled={isSubmitting}>
               {isSubmitting ? 'Saving...' : editingTransaction ? 'Update Transaction' : 'Add Transaction'}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* Add Savings Modal */}
+      <Modal show={showSavingsModal} onHide={() => setShowSavingsModal(false)} centered>
+        <Form onSubmit={handleSavingsSubmit}>
+          <Modal.Header closeButton>
+            <Modal.Title>
+              <PiggyBank size={18} className="me-2 text-primary" />
+              Add Savings
+            </Modal.Title>
+          </Modal.Header>
+          <Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label>Goal</Form.Label>
+              <Form.Select
+                value={selectedGoal}
+                onChange={(e) => setSelectedGoal(e.target.value)}
+                required
+              >
+                <option value="">Select a goal...</option>
+                {goals.map((goal) => (
+                  <option key={goal.id} value={goal.id}>
+                    {goal.name}
+                    {goal.account ? ` (${goal.account})` : ''}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            <Row className="mb-3">
+              <Col xs={6}>
+                <Form.Label>Amount</Form.Label>
+                <Form.Control
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={formAmount}
+                  onChange={(e) => setFormAmount(e.target.value)}
+                  required
+                />
+              </Col>
+              <Col xs={6}>
+                <Form.Label>Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={formDate}
+                  onChange={(e) => setFormDate(e.target.value)}
+                  required
+                />
+              </Col>
+            </Row>
+
+            {savingsError && (
+              <div className="alert alert-danger mb-0" role="alert">
+                {savingsError}
+              </div>
+            )}
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="secondary" onClick={() => setShowSavingsModal(false)} disabled={isSubmittingSavings}>
+              Cancel
+            </Button>
+            <Button variant="success" type="submit" disabled={isSubmittingSavings}>
+              {isSubmittingSavings ? 'Adding...' : 'Add Savings'}
             </Button>
           </Modal.Footer>
         </Form>

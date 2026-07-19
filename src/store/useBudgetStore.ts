@@ -3,6 +3,7 @@ import { DataRepository, Transaction, SavingsGoal } from '../types'
 
 type TransactionWithoutId = Omit<Transaction, 'id'>
 type GoalWithoutId = Omit<SavingsGoal, 'id'>
+type SavingsWithoutId = Omit<Transaction, 'id' | 'type'> & { goalId: string }
 
 // Generate a unique ID - fallback for non-secure contexts where crypto.randomUUID() is unavailable
 function generateId(): string {
@@ -26,6 +27,7 @@ interface BudgetState {
   fetchTransactions: () => Promise<void>
   addTransaction: (transactionData: TransactionWithoutId) => Promise<void>
   deleteTransaction: (id: string) => Promise<void>
+  addSavings: (savingsData: SavingsWithoutId) => Promise<void>
   fetchGoals: () => Promise<void>
   addGoal: (goalData: GoalWithoutId) => Promise<void>
   updateGoal: (goal: SavingsGoal) => Promise<void>
@@ -83,8 +85,30 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
     try {
       await repository.deleteTransaction(id)
       await get().fetchTransactions()
+      await get().fetchGoals()
     } catch (error) {
       set({ error: 'Failed to delete transaction', isLoading: false })
+      throw error
+    }
+  },
+
+  addSavings: async (savingsData: SavingsWithoutId) => {
+    if (!repository) {
+      set({ error: 'Repository not initialized', isLoading: false })
+      throw new Error('Repository not initialized')
+    }
+    set({ isLoading: true, error: null })
+    try {
+      const newSavings: Transaction = {
+        ...savingsData,
+        id: generateId(),
+        type: 'savings' as const,
+      }
+      await repository.addTransaction(newSavings)
+      await get().fetchTransactions()
+      await get().fetchGoals()
+    } catch (error) {
+      set({ error: 'Failed to add savings', isLoading: false })
       throw error
     }
   },

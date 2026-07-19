@@ -8,14 +8,8 @@ import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
 import { Plus, Trash2, Edit } from 'lucide-react'
 import { useBudgetStore } from '../store/useBudgetStore'
-
-interface Goal {
-  id: string
-  name: string
-  target_amount_cents: number
-  current_amount_cents: number
-  deadline?: string
-}
+import { formatMoney, getLocalDateString } from '../utils/formatting'
+import type { SavingsGoal } from '../types'
 
 // Reusable Delete Confirmation Modal component
 function DeleteConfirmationModal({
@@ -49,20 +43,8 @@ function DeleteConfirmationModal({
   )
 }
 
-function GoalCard({ goal, onDelete, onEdit }: { goal: Goal; onDelete: (id: string) => void; onEdit: (goal: Goal) => void }) {
+function GoalCard({ goal, onDelete, onEdit }: { goal: SavingsGoal; onDelete: (id: string) => void; onEdit: (goal: SavingsGoal) => void }) {
   const progress = Math.min((goal.current_amount_cents / goal.target_amount_cents) * 100, 100)
-  const formatMoney = (cents: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100)
-
-  // Helper to convert ISO date to local date string without UTC offset issue
-  const getLocalDateString = (isoString: string) => {
-    const date = new Date(isoString)
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    }).format(date)
-  }
 
   // Delete confirmation state
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -116,19 +98,17 @@ function GoalCard({ goal, onDelete, onEdit }: { goal: Goal; onDelete: (id: strin
             </Col>
           </Row>
 
-          {goal.deadline && (
+          {goal.account && (
             <div className="mt-3 small text-secondary">
-              Deadline: {getLocalDateString(goal.deadline)}
+              Account: {goal.account}
             </div>
           )}
 
-          <div className="mt-3 p-2 bg-light rounded">
-            <small className="text-muted d-block">How to add savings:</small>
-            <small className="text-body">
-              Click the edit button above to update the current amount. Add money by increasing
-              the <strong>Current Amount</strong> field with your additional savings.
-            </small>
-          </div>
+          {goal.deadline && (
+            <div className="mt-1 small text-secondary">
+              Deadline: {getLocalDateString(goal.deadline)}
+            </div>
+          )}
         </Card.Body>
       </Card>
 
@@ -145,7 +125,7 @@ function GoalCard({ goal, onDelete, onEdit }: { goal: Goal; onDelete: (id: strin
 
 function GoalsView() {
   const [showModal, setShowModal] = useState(false)
-  const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
+  const [editingGoal, setEditingGoal] = useState<SavingsGoal | null>(null)
   const goals = useBudgetStore((state) => state.goals)
   const addGoal = useBudgetStore((state) => state.addGoal)
   const updateGoal = useBudgetStore((state) => state.updateGoal)
@@ -154,20 +134,20 @@ function GoalsView() {
   // Form state
   const [formName, setFormName] = useState('')
   const [formTarget, setFormTarget] = useState('')
-  const [formCurrent, setFormCurrent] = useState('0')
   const [formDeadline, setFormDeadline] = useState('')
+  const [formAccount, setFormAccount] = useState('')
 
   useEffect(() => {
     useBudgetStore.getState().fetchGoals()
   }, [])
 
   // Open edit modal with existing goal data
-  const handleEditClick = (goal: Goal) => {
+  const handleEditClick = (goal: SavingsGoal) => {
     setEditingGoal(goal)
     setFormName(goal.name)
     setFormTarget((goal.target_amount_cents / 100).toString())
-    setFormCurrent((goal.current_amount_cents / 100).toString())
     setFormDeadline(goal.deadline || '')
+    setFormAccount(goal.account || '')
     setShowModal(true)
   }
 
@@ -181,16 +161,18 @@ function GoalsView() {
         id: editingGoal.id,
         name: formName,
         target_amount_cents: Math.round(parseFloat(formTarget) * 100),
-        current_amount_cents: Math.round(parseFloat(formCurrent) * 100),
+        current_amount_cents: editingGoal.current_amount_cents,
         deadline: formDeadline ? formDeadline : undefined,
+        account: formAccount || undefined,
       })
     } else {
       // Add new goal
       addGoal({
         name: formName,
         target_amount_cents: Math.round(parseFloat(formTarget) * 100),
-        current_amount_cents: Math.round(parseFloat(formCurrent) * 100),
+        current_amount_cents: 0,
         deadline: formDeadline ? formDeadline : undefined,
+        account: formAccount || undefined,
       })
     }
 
@@ -198,8 +180,8 @@ function GoalsView() {
     // Reset form
     setFormName('')
     setFormTarget('')
-    setFormCurrent('0')
     setFormDeadline('')
+    setFormAccount('')
     setEditingGoal(null)
   }
 
@@ -229,7 +211,7 @@ function GoalsView() {
         </Card>
       ) : (
         <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-          {goals.map((goal: Goal) => (
+          {goals.map((goal: SavingsGoal) => (
             <div key={goal.id} className="col">
               <GoalCard
                 goal={goal}
@@ -259,6 +241,16 @@ function GoalsView() {
               />
             </Form.Group>
 
+            <Form.Group className="mb-3">
+              <Form.Label>Account (Optional)</Form.Label>
+              <Form.Control
+                type="text"
+                placeholder="e.g., Fidelity 401k, Chase Savings"
+                value={formAccount}
+                onChange={(e) => setFormAccount(e.target.value)}
+              />
+            </Form.Group>
+
             <Row className="mb-3">
               <Col xs={6}>
                 <Form.Label>Target Amount</Form.Label>
@@ -273,23 +265,19 @@ function GoalsView() {
                 />
               </Col>
               <Col xs={6}>
-                <Form.Label>Current Amount</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={formCurrent}
-                  onChange={(e) => setFormCurrent(e.target.value)}
-                  required
-                />
+                <Form.Label>Deadline (Optional)</Form.Label>
+                <Form.Control type="date" value={formDeadline} onChange={(e) => setFormDeadline(e.target.value)} />
               </Col>
             </Row>
 
-            <Form.Group className="mb-3">
-              <Form.Label>Deadline (Optional)</Form.Label>
-              <Form.Control type="date" value={formDeadline} onChange={(e) => setFormDeadline(e.target.value)} />
-            </Form.Group>
+            {editingGoal && (
+              <div className="alert alert-info mb-0">
+                <small>
+                  <strong>Current:</strong> {formatMoney(editingGoal.current_amount_cents)}
+                  {' — updated automatically from savings transactions.'}
+                </small>
+              </div>
+            )}
           </Modal.Body>
           <Modal.Footer>
             <Button variant="secondary" onClick={() => setShowModal(false)}>

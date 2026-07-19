@@ -15,23 +15,23 @@ function LayoutShell({ children }: LayoutShellProps) {
 
   return (
     <div className="layout-shell min-vh-100 d-flex flex-column">
-      <Navbar bg="dark" data-bs-theme="dark" expand="sm" className="border-bottom">
+      <Navbar bg="dark" data-bs-theme="dark" expand="lg" className="border-bottom">
         <Container fluid>
           <Navbar.Brand as={Link} to="/" className="fw-bold text-white">
             Budgeteer
           </Navbar.Brand>
 
           <Navbar.Toggle
-            aria-controls="offcanvasNavbar-sm"
+            aria-controls="offcanvasNavbar-lg"
             onClick={() => setShow(true)}
           />
 
           <Navbar.Offcanvas
-            id="offcanvasNavbar-sm"
+            id="offcanvasNavbar-lg"
             placement="end"
             show={show}
             onHide={() => setShow(false)}
-            responsive="sm"
+            responsive="lg"
           >
             <Offcanvas.Header className="bg-dark text-white">
               <Offcanvas.Title className="text-white flex-grow-1">Menu</Offcanvas.Title>
@@ -43,17 +43,17 @@ function LayoutShell({ children }: LayoutShellProps) {
               />
             </Offcanvas.Header>
             <Offcanvas.Body className="bg-dark">
-              <Nav className="flex-column">
+              <Nav className="justify-content-end flex-grow-1 pe-3">
                 <Nav.Link as={Link} to="/" onClick={() => setShow(false)} className="text-white">
-                  <LayoutDashboard size={18} className="me-2" />
+                  <LayoutDashboard size={18} className="me-1" />
                   Dashboard
                 </Nav.Link>
                 <Nav.Link as={Link} to="/transactions" onClick={() => setShow(false)} className="text-white">
-                  <ListTodo size={18} className="me-2" />
+                  <ListTodo size={18} className="me-1" />
                   Transactions
                 </Nav.Link>
                 <Nav.Link as={Link} to="/goals" onClick={() => setShow(false)} className="text-white">
-                  <Target size={18} className="me-2" />
+                  <Target size={18} className="me-1" />
                   Goals
                 </Nav.Link>
               </Nav>

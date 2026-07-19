@@ -18,3 +18,10 @@ body {
   display: flex;
   flex-direction: column;
 }
+
+/* Hide navbar toggle on desktop — links are inlined via Navbar.Collapse */
+@media (min-width: 992px) {
+  .navbar-toggler {
+    display: none;
+  }
+}
