@@ -134,6 +134,7 @@ function GoalsView() {
   // Form state
   const [formName, setFormName] = useState('')
   const [formTarget, setFormTarget] = useState('')
+  const [formCurrent, setFormCurrent] = useState('')
   const [formDeadline, setFormDeadline] = useState('')
   const [formAccount, setFormAccount] = useState('')
 
@@ -146,6 +147,7 @@ function GoalsView() {
     setEditingGoal(goal)
     setFormName(goal.name)
     setFormTarget((goal.target_amount_cents / 100).toString())
+    setFormCurrent((goal.current_amount_cents / 100).toString())
     setFormDeadline(goal.deadline || '')
     setFormAccount(goal.account || '')
     setShowModal(true)
@@ -161,7 +163,7 @@ function GoalsView() {
         id: editingGoal.id,
         name: formName,
         target_amount_cents: Math.round(parseFloat(formTarget) * 100),
-        current_amount_cents: editingGoal.current_amount_cents,
+        current_amount_cents: Math.round(parseFloat(formCurrent) * 100),
         deadline: formDeadline ? formDeadline : undefined,
         account: formAccount || undefined,
       })
@@ -170,7 +172,7 @@ function GoalsView() {
       addGoal({
         name: formName,
         target_amount_cents: Math.round(parseFloat(formTarget) * 100),
-        current_amount_cents: 0,
+        current_amount_cents: Math.round(parseFloat(formCurrent || '0') * 100),
         deadline: formDeadline ? formDeadline : undefined,
         account: formAccount || undefined,
       })
@@ -180,6 +182,7 @@ function GoalsView() {
     // Reset form
     setFormName('')
     setFormTarget('')
+    setFormCurrent('')
     setFormDeadline('')
     setFormAccount('')
     setEditingGoal(null)
@@ -252,7 +255,7 @@ function GoalsView() {
             </Form.Group>
 
             <Row className="mb-3">
-              <Col xs={6}>
+              <Col xs={4}>
                 <Form.Label>Target Amount</Form.Label>
                 <Form.Control
                   type="number"
@@ -264,7 +267,19 @@ function GoalsView() {
                   required
                 />
               </Col>
-              <Col xs={6}>
+              <Col xs={4}>
+                <Form.Label>Current Amount</Form.Label>
+                <Form.Control
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={formCurrent}
+                  onChange={(e) => setFormCurrent(e.target.value)}
+                  required={!!editingGoal}
+                />
+              </Col>
+              <Col xs={4}>
                 <Form.Label>Deadline (Optional)</Form.Label>
                 <Form.Control type="date" value={formDeadline} onChange={(e) => setFormDeadline(e.target.value)} />
               </Col>

@@ -3,7 +3,7 @@ import Container from 'react-bootstrap/Container'
 import Nav from 'react-bootstrap/Nav'
 import Navbar from 'react-bootstrap/Navbar'
 import Offcanvas from 'react-bootstrap/Offcanvas'
-import { LayoutDashboard, ListTodo, Target } from 'lucide-react'
+import { LayoutDashboard, ListTodo, Target, Upload } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 interface LayoutShellProps {
@@ -55,6 +55,10 @@ function LayoutShell({ children }: LayoutShellProps) {
                 <Nav.Link as={Link} to="/goals" onClick={() => setShow(false)} className="text-white">
                   <Target size={18} className="me-1" />
                   Goals
+                </Nav.Link>
+                <Nav.Link as={Link} to="/import" onClick={() => setShow(false)} className="text-white">
+                  <Upload size={18} className="me-1" />
+                  Import
                 </Nav.Link>
               </Nav>
             </Offcanvas.Body>

@@ -5,6 +5,7 @@ import LayoutShell from './components/LayoutShell'
 import DashboardView from './views/DashboardView'
 import TransactionsView from './views/TransactionsView'
 import GoalsView from './views/GoalsView'
+import ImportView from './components/ImportView'
 import LocalStorageRepository from './repositories/LocalStorageRepository'
 import { useBudgetStore } from './store/useBudgetStore'
 
@@ -34,6 +35,7 @@ function App() {
             <Route index element={<DashboardView />} />
             <Route path="transactions" element={<TransactionsView />} />
             <Route path="goals" element={<GoalsView />} />
+            <Route path="import" element={<ImportView />} />
           </Routes>
         </AppInitializer>
       </LayoutShell>

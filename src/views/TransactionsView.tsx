@@ -6,7 +6,7 @@ import Modal from 'react-bootstrap/Modal'
 import Form from 'react-bootstrap/Form'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
-import { Trash2, Edit, PiggyBank } from 'lucide-react'
+import { Trash2, Edit, PiggyBank, Plus } from 'lucide-react'
 import { useBudgetStore } from '../store/useBudgetStore'
 import { formatMoney, getLocalDateString } from '../utils/formatting'
 
@@ -194,6 +194,25 @@ function TransactionsView() {
             ))}
           </Form.Select>
           <Button
+            variant="primary"
+            size="sm"
+            className="ms-2"
+            onClick={() => {
+              setEditingTransaction(null)
+              setFormAmount('')
+              setFormCategory('')
+              setFormMerchant('')
+              setFormDate(new Date().toISOString().split('T')[0])
+              setFormDescription('')
+              setSubmitError(null)
+              setShowModal(true)
+            }}
+            title="Add transaction"
+          >
+            <Plus size={16} className="me-1" />
+            Add
+          </Button>
+          <Button
             variant="success"
             size="sm"
             className="ms-2"
@@ -302,7 +321,7 @@ function TransactionsView() {
       </Modal>
 
       {/* Add/Edit Transaction Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
+      <Modal show={showModal} onHide={() => { setShowModal(false); setEditingTransaction(null); }} centered>
         <Form onSubmit={handleAddTransaction}>
           <Modal.Header closeButton>
             <Modal.Title>{editingTransaction ? 'Edit Transaction' : 'Add New Transaction'}</Modal.Title>

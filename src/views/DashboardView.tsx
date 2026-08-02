@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Card from 'react-bootstrap/Card'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
@@ -53,6 +53,14 @@ function DashboardView() {
 
   const transactions = useBudgetStore((state) => state.transactions)
   const goals = useBudgetStore((state) => state.goals)
+
+  useEffect(() => {
+    useBudgetStore.getState().fetchTransactions()
+  }, [])
+
+  useEffect(() => {
+    useBudgetStore.getState().fetchGoals()
+  }, [])
 
   // Filter transactions to selected month
   const monthlyTransactions = useMemo(() => {
