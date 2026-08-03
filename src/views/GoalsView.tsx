@@ -1,124 +1,80 @@
 import { useState, useEffect } from 'react'
-import Button from 'react-bootstrap/Button'
-import Card from 'react-bootstrap/Card'
-import ProgressBar from 'react-bootstrap/ProgressBar'
-import Modal from 'react-bootstrap/Modal'
-import Form from 'react-bootstrap/Form'
-import Row from 'react-bootstrap/Row'
-import Col from 'react-bootstrap/Col'
 import { Plus, Trash2, Edit } from 'lucide-react'
 import { useBudgetStore } from '../store/useBudgetStore'
 import { formatMoney, getLocalDateString } from '../utils/formatting'
+import { Dialog } from '../components/LayoutShell'
 import type { SavingsGoal } from '../types'
 
-// Reusable Delete Confirmation Modal component
-function DeleteConfirmationModal({
-  show,
-  itemName,
-  onDelete,
-  onHide
-}: {
-  show: boolean
-  itemName: string
-  onDelete: () => void
-  onHide: () => void
-}) {
-  return (
-    <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Delete {itemName}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        Are you sure you want to delete <strong>{itemName}</strong>? This action cannot be undone.
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
-          Cancel
-        </Button>
-        <Button variant="danger" onClick={onDelete}>
-          Delete
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  )
-}
-
 function GoalCard({ goal, onDelete, onEdit }: { goal: SavingsGoal; onDelete: (id: string) => void; onEdit: (goal: SavingsGoal) => void }) {
+  const [showDelete, setShowDelete] = useState(false)
   const progress = Math.min((goal.current_amount_cents / goal.target_amount_cents) * 100, 100)
-
-  // Delete confirmation state
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-
-  const handleDelete = () => {
-    onDelete(goal.id)
-    setShowDeleteModal(false)
-  }
 
   return (
     <>
-      <Card className="mb-4 border-0 shadow-sm">
-        <Card.Body>
-          <div className="d-flex justify-content-between align-items-start mb-3">
-            <h5 className="fw-bold m-0">{goal.name}</h5>
-            <div className="d-flex gap-1">
-              <Button
-                variant="outline-primary"
-                size="sm"
-                onClick={() => onEdit(goal)}
-                title="Edit goal"
-              >
-                <Edit size={14} />
-              </Button>
-              <Button
-                variant="outline-danger"
-                size="sm"
-                onClick={() => setShowDeleteModal(true)}
-                title="Delete goal"
-              >
-                <Trash2 size={14} />
-              </Button>
-            </div>
+      <div className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col h-full hover:shadow-sm transition-shadow">
+        <div className="flex items-start justify-between mb-4">
+          <h3 className="text-lg font-semibold text-slate-900 truncate">{goal.name}</h3>
+          <div className="flex gap-1 shrink-0">
+            <button
+              onClick={() => onEdit(goal)}
+              className="p-1.5 rounded-md text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+              title="Edit"
+            >
+              <Edit size={14} />
+            </button>
+            <button
+              onClick={() => setShowDelete(true)}
+              className="p-1.5 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+              title="Delete"
+            >
+              <Trash2 size={14} />
+            </button>
           </div>
+        </div>
 
-          <ProgressBar
-            now={progress}
-            label={`${Math.round(progress)}%`}
-            className="mb-3"
-            style={{ height: '8px' }}
+        <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
+          <div
+            className="h-full bg-blue-500 rounded-full transition-all"
+            style={{ width: `${progress}%` }}
           />
+        </div>
 
-          <Row className="align-items-center">
-            <Col xs={6}>
-              <small className="text-muted">Saved</small>
-              <div className="fw-bold text-success">{formatMoney(goal.current_amount_cents)}</div>
-            </Col>
-            <Col xs={6} className="text-end">
-              <small className="text-muted">Goal</small>
-              <div className="fw-bold">{formatMoney(goal.target_amount_cents)}</div>
-            </Col>
-          </Row>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-xs text-slate-500">Saved</p>
+            <p className="text-lg font-bold text-emerald-600">{formatMoney(goal.current_amount_cents)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs text-slate-500">Goal</p>
+            <p className="text-lg font-bold text-slate-900">{formatMoney(goal.target_amount_cents)}</p>
+          </div>
+        </div>
 
-          {goal.account && (
-            <div className="mt-3 small text-secondary">
-              Account: {goal.account}
-            </div>
-          )}
+        <div className="mt-auto space-y-1 text-xs text-slate-400">
+          {goal.account && <p>Account: {goal.account}</p>}
+          {goal.deadline && <p>Deadline: {getLocalDateString(goal.deadline)}</p>}
+        </div>
+      </div>
 
-          {goal.deadline && (
-            <div className="mt-1 small text-secondary">
-              Deadline: {getLocalDateString(goal.deadline)}
-            </div>
-          )}
-        </Card.Body>
-      </Card>
-
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmationModal
-        show={showDeleteModal}
-        itemName={goal.name}
-        onDelete={handleDelete}
-        onHide={() => setShowDeleteModal(false)}
-      />
+      <Dialog
+        open={showDelete}
+        onClose={() => setShowDelete(false)}
+        title="Delete Goal"
+        footer={
+          <>
+            <button onClick={() => setShowDelete(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+              Cancel
+            </button>
+            <button onClick={() => { onDelete(goal.id); setShowDelete(false); }} className="px-4 py-2 text-sm font-medium text-white bg-rose-600 rounded-lg hover:bg-rose-700 transition-colors">
+              Delete
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600">
+          Are you sure you want to delete <strong>{goal.name}</strong>? This action cannot be undone.
+        </p>
+      </Dialog>
     </>
   )
 }
@@ -131,7 +87,6 @@ function GoalsView() {
   const updateGoal = useBudgetStore((state) => state.updateGoal)
   const deleteGoal = useBudgetStore((state) => state.deleteGoal)
 
-  // Form state
   const [formName, setFormName] = useState('')
   const [formTarget, setFormTarget] = useState('')
   const [formCurrent, setFormCurrent] = useState('')
@@ -142,8 +97,7 @@ function GoalsView() {
     useBudgetStore.getState().fetchGoals()
   }, [])
 
-  // Open edit modal with existing goal data
-  const handleEditClick = (goal: SavingsGoal) => {
+  const openEdit = (goal: SavingsGoal) => {
     setEditingGoal(goal)
     setFormName(goal.name)
     setFormTarget((goal.target_amount_cents / 100).toString())
@@ -153,12 +107,9 @@ function GoalsView() {
     setShowModal(true)
   }
 
-  // Handle save - either add or update
   const handleGoalSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-
     if (editingGoal) {
-      // Update existing goal
       updateGoal({
         id: editingGoal.id,
         name: formName,
@@ -168,7 +119,6 @@ function GoalsView() {
         account: formAccount || undefined,
       })
     } else {
-      // Add new goal
       addGoal({
         name: formName,
         target_amount_cents: Math.round(parseFloat(formTarget) * 100),
@@ -177,9 +127,7 @@ function GoalsView() {
         account: formAccount || undefined,
       })
     }
-
     setShowModal(false)
-    // Reset form
     setFormName('')
     setFormTarget('')
     setFormCurrent('')
@@ -188,122 +136,130 @@ function GoalsView() {
     setEditingGoal(null)
   }
 
+  const openAddModal = () => {
+    setEditingGoal(null)
+    setFormName('')
+    setFormTarget('')
+    setFormCurrent('')
+    setFormDeadline('')
+    setFormAccount('')
+    setShowModal(true)
+  }
+
   return (
     <div>
-      <Row className="align-items-center mb-4">
-        <Col>
-          <h2>Savings Goals</h2>
-        </Col>
-        <Col xs="auto">
-          <Button variant="primary" onClick={() => setShowModal(true)}>
-            <Plus size={18} className="me-2" />
-            Add Goal
-          </Button>
-        </Col>
-      </Row>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Savings Goals</h1>
+        <button
+          onClick={openAddModal}
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <Plus size={16} />
+          Add Goal
+        </button>
+      </div>
 
       {goals.length === 0 ? (
-        <Card className="text-center py-5">
-          <Card.Body>
-            <h4 className="text-muted">No savings goals yet</h4>
-            <p className="text-secondary">Create your first savings goal to track your progress!</p>
-            <Button variant="primary" onClick={() => setShowModal(true)}>
-              Create First Goal
-            </Button>
-          </Card.Body>
-        </Card>
+        <div className="bg-white border border-slate-200 rounded-xl p-10 text-center">
+          <h3 className="text-lg font-medium text-slate-500">No savings goals yet</h3>
+          <p className="text-slate-400 text-sm mt-1 mb-4">Create your first savings goal to track your progress!</p>
+          <button onClick={openAddModal} className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+            <Plus size={16} />
+            Create First Goal
+          </button>
+        </div>
       ) : (
-        <div className="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
-          {goals.map((goal: SavingsGoal) => (
-            <div key={goal.id} className="col">
-              <GoalCard
-                goal={goal}
-                onDelete={deleteGoal}
-                onEdit={handleEditClick}
-              />
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {goals.map((goal) => (
+            <GoalCard key={goal.id} goal={goal} onDelete={deleteGoal} onEdit={openEdit} />
           ))}
         </div>
       )}
 
-      {/* Add/Edit Goal Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)} centered>
-        <Form onSubmit={handleGoalSubmit}>
-          <Modal.Header closeButton>
-            <Modal.Title>{editingGoal ? 'Edit Savings Goal' : 'Create New Savings Goal'}</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Goal Name</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="e.g., Emergency Fund, Vacation"
-                value={formName}
-                onChange={(e) => setFormName(e.target.value)}
-                required
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Account (Optional)</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="e.g., Fidelity 401k, Chase Savings"
-                value={formAccount}
-                onChange={(e) => setFormAccount(e.target.value)}
-              />
-            </Form.Group>
-
-            <Row className="mb-3">
-              <Col xs={4}>
-                <Form.Label>Target Amount</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={formTarget}
-                  onChange={(e) => setFormTarget(e.target.value)}
-                  required
-                />
-              </Col>
-              <Col xs={4}>
-                <Form.Label>Current Amount</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={formCurrent}
-                  onChange={(e) => setFormCurrent(e.target.value)}
-                  required={!!editingGoal}
-                />
-              </Col>
-              <Col xs={4}>
-                <Form.Label>Deadline (Optional)</Form.Label>
-                <Form.Control type="date" value={formDeadline} onChange={(e) => setFormDeadline(e.target.value)} />
-              </Col>
-            </Row>
-
-            {editingGoal && (
-              <div className="alert alert-info mb-0">
-                <small>
-                  <strong>Current:</strong> {formatMoney(editingGoal.current_amount_cents)}
-                  {' — updated automatically from savings transactions.'}
-                </small>
-              </div>
-            )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>
+      <Dialog
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        title={editingGoal ? 'Edit Savings Goal' : 'Create New Savings Goal'}
+        footer={
+          <>
+            <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
               Cancel
-            </Button>
-            <Button variant="primary" type="submit">
+            </button>
+            <button onClick={() => {}} form="goal-form" type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
               {editingGoal ? 'Update Goal' : 'Create Goal'}
-            </Button>
-          </Modal.Footer>
-        </Form>
-      </Modal>
+            </button>
+          </>
+        }
+      >
+        <form id="goal-form" onSubmit={handleGoalSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Goal Name</label>
+            <input
+              type="text"
+              placeholder="e.g., Emergency Fund, Vacation"
+              value={formName}
+              onChange={(e) => setFormName(e.target.value)}
+              required
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Account (Optional)</label>
+            <input
+              type="text"
+              placeholder="e.g., Fidelity 401k, Chase Savings"
+              value={formAccount}
+              onChange={(e) => setFormAccount(e.target.value)}
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Target</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={formTarget}
+                onChange={(e) => setFormTarget(e.target.value)}
+                required
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Current</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={formCurrent}
+                onChange={(e) => setFormCurrent(e.target.value)}
+                required={!!editingGoal}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Deadline</label>
+              <input
+                type="date"
+                value={formDeadline}
+                onChange={(e) => setFormDeadline(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+          </div>
+
+          {editingGoal && (
+            <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+              <strong>Current:</strong> {formatMoney(editingGoal.current_amount_cents)} — updated automatically from savings transactions.
+            </div>
+          )}
+        </form>
+      </Dialog>
     </div>
   )
 }

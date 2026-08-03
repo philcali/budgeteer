@@ -1,14 +1,10 @@
 import { useState, useMemo, useEffect } from 'react'
-import Card from 'react-bootstrap/Card'
-import Row from 'react-bootstrap/Row'
-import Col from 'react-bootstrap/Col'
-import Form from 'react-bootstrap/Form'
 import { Link } from 'react-router-dom'
 import { useBudgetStore } from '../store/useBudgetStore'
 import type { Transaction } from '../types'
 import { formatMoney } from '../utils/formatting'
-import { ArrowUpRight, ArrowDownRight, Wallet, PiggyBank, ArrowRightLeft } from 'lucide-react'
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
+import { ArrowUpRight, ArrowDownRight, Wallet, PiggyBank, ArrowRightLeft, ChevronDown } from 'lucide-react'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts'
 
 // Generate list of months for the dropdown (last 12 months + current)
 function getMonthsList() {
@@ -26,22 +22,45 @@ function getMonthsList() {
 
 const monthsList = getMonthsList()
 
-function StatTile({ title, value, icon: Icon, trend }: { title: string; value: string; icon: any; trend?: string }) {
+function MetricCard({
+  title,
+  value,
+  icon: Icon,
+  accent,
+  sub,
+}: {
+  title: string
+  value: string
+  icon: React.ComponentType<{ size: number }>
+  accent: 'green' | 'red' | 'blue' | 'slate'
+  sub?: string
+}) {
+  const accentMap = {
+    green: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    red: 'bg-rose-50 text-rose-700 border-rose-200',
+    blue: 'bg-blue-50 text-blue-700 border-blue-200',
+    slate: 'bg-white text-slate-700 border-slate-200',
+  }
+  const iconBgMap = {
+    green: 'bg-emerald-100 text-emerald-600',
+    red: 'bg-rose-100 text-rose-600',
+    blue: 'bg-blue-100 text-blue-600',
+    slate: 'bg-slate-100 text-slate-500',
+  }
+
   return (
-    <Card className="mb-4 border-0 shadow-sm">
-      <Card.Body>
-        <Row className="align-items-center">
-          <Col xs={3} className="text-primary">
-            <Icon size={32} />
-          </Col>
-          <Col xs={9}>
-            <Card.Text className="text-muted mb-1">{title}</Card.Text>
-            <Card.Title className="h4 mb-0">{value}</Card.Title>
-            {trend && <small className={`text-${trend.startsWith('+') ? 'success' : 'danger'}`}>{trend}</small>}
-          </Col>
-        </Row>
-      </Card.Body>
-    </Card>
+    <div className={`rounded-xl border p-4 ${accentMap[accent]}`}>
+      <div className="flex items-center gap-3">
+        <div className={`p-2 rounded-lg ${iconBgMap[accent]}`}>
+          <Icon size={20} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium opacity-70">{title}</p>
+          <p className="text-xl font-bold truncate">{value}</p>
+          {sub && <p className="text-xs opacity-60 mt-0.5">{sub}</p>}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -79,17 +98,6 @@ function DashboardView() {
     .reduce((sum, t) => sum + t.amount_cents, 0)
   const netFlow = monthlyIncome - monthlyExpenses
 
-  // Savings breakdown for the pie chart
-  const chartData = useMemo(() => {
-    const data = [
-      { name: 'Income', value: monthlyIncome, color: '#198754' },
-      { name: 'Expenses', value: monthlyExpenses, color: '#dc3545' },
-      { name: 'Savings', value: monthlySavings, color: '#0d6efd' },
-    ]
-    // Only show non-zero slices
-    return data.filter((d) => d.value > 0)
-  }, [monthlyIncome, monthlyExpenses, monthlySavings])
-
   // Savings breakdown per goal for the month
   const savingsByGoal = useMemo(() => {
     return monthlyTransactions
@@ -104,180 +112,167 @@ function DashboardView() {
 
   // Savings rate
   const savingsRate = monthlyIncome > 0 ? Math.round((monthlySavings / monthlyIncome) * 100) : 0
+  const availableToSave = netFlow - monthlySavings
+
+  // Chart data
+  const chartData = useMemo(() => {
+    const data = [
+      { name: 'Income', value: monthlyIncome, color: '#10b981' },
+      { name: 'Expenses', value: monthlyExpenses, color: '#f43f5e' },
+      { name: 'Savings', value: monthlySavings, color: '#3b82f6' },
+    ]
+    return data.filter((d) => d.value > 0)
+  }, [monthlyIncome, monthlyExpenses, monthlySavings])
 
   return (
     <div>
-      {/* Month selector */}
-      <Row className="align-items-center mb-4">
-        <Col>
-          <h2>Dashboard</h2>
-        </Col>
-        <Col xs="auto">
-          <Form.Label className="me-2 d-inline">Month:</Form.Label>
-          <Form.Select
+      {/* Header + month selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+        <div className="relative inline-block w-48">
+          <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className="d-inline w-auto"
+            className="w-full appearance-none bg-white border border-slate-300 rounded-lg px-3 py-2 pr-8 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
             {monthsList.map((month) => (
               <option key={month.value} value={month.value}>
                 {month.label}
               </option>
             ))}
-          </Form.Select>
-        </Col>
-      </Row>
+          </select>
+          <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        </div>
+      </div>
 
-      {/* Monthly stats row */}
-      <Row>
-        <Col md={4}>
-          <StatTile
-            title="Monthly Income"
-            value={formatMoney(monthlyIncome)}
-            icon={ArrowUpRight}
-            trend="+ this month"
-          />
-        </Col>
-        <Col md={4}>
-          <StatTile
-            title="Monthly Expenses"
-            value={formatMoney(monthlyExpenses)}
-            icon={ArrowDownRight}
-            trend="- this month"
-          />
-        </Col>
-        <Col md={4}>
-          <StatTile
-            title="Net Flow"
-            value={formatMoney(netFlow)}
-            icon={ArrowRightLeft}
-            trend={netFlow >= 0 ? '+ on track' : '- overspent'}
-          />
-        </Col>
-      </Row>
+      {/* Summary strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <MetricCard
+          title="Income"
+          value={formatMoney(monthlyIncome)}
+          icon={ArrowUpRight}
+          accent="green"
+          sub="this month"
+        />
+        <MetricCard
+          title="Expenses"
+          value={formatMoney(monthlyExpenses)}
+          icon={ArrowDownRight}
+          accent="red"
+          sub="this month"
+        />
+        <MetricCard
+          title="Net Flow"
+          value={formatMoney(netFlow)}
+          icon={ArrowRightLeft}
+          accent={netFlow >= 0 ? 'green' : 'red'}
+          sub={netFlow >= 0 ? 'on track' : 'overspent'}
+        />
+      </div>
 
-      {/* Savings summary */}
-      <Row>
-        <Col md={6}>
-          <StatTile
-            title="Saved This Month"
-            value={formatMoney(monthlySavings)}
-            icon={PiggyBank}
-            trend={`${savingsRate}% savings rate`}
-          />
-        </Col>
-        <Col md={6}>
-          <StatTile
-            title="Available to Save"
-            value={formatMoney(netFlow - monthlySavings)}
-            icon={Wallet}
-            trend={netFlow - monthlySavings >= 0 ? 'remaining' : 'over-allocated'}
-          />
-        </Col>
-      </Row>
+      {/* Savings row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <MetricCard
+          title="Saved This Month"
+          value={formatMoney(monthlySavings)}
+          icon={PiggyBank}
+          accent="blue"
+          sub={`${savingsRate}% savings rate`}
+        />
+        <MetricCard
+          title="Available to Save"
+          value={formatMoney(availableToSave)}
+          icon={Wallet}
+          accent={availableToSave >= 0 ? 'slate' : 'red'}
+          sub={availableToSave >= 0 ? 'remaining' : 'over-allocated'}
+        />
+      </div>
 
-      {/* Pie chart */}
+      {/* Where money went */}
       {monthlyIncome > 0 && chartData.length > 0 && (
-        <Card className="mt-4 border-0 shadow-sm">
-          <Card.Body>
-            <Card.Title>Where Your Money Went</Card.Title>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie
-                  data={chartData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={90}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                >
-                  {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value: number) => formatMoney(value)} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </Card.Body>
-        </Card>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6">
+          <h2 className="text-sm font-semibold text-slate-900 mb-4">Where Your Money Went</h2>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12, fill: '#64748b' }} />
+              <Tooltip
+                formatter={(value: number) => formatMoney(value)}
+                contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}
+              />
+              <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       )}
 
-      {/* Savings breakdown per goal */}
+      {/* Savings allocations */}
       {Object.keys(savingsByGoal).length > 0 && (
-        <Card className="mt-4 border-0 shadow-sm">
-          <Card.Body>
-            <Card.Title>Savings Allocations This Month</Card.Title>
-            <div className="row g-3">
-              {Object.entries(savingsByGoal).map(([goalId, { name, amount_cents }]) => (
-                <Col xs={12} sm={6} key={goalId}>
-                  <div className="d-flex justify-content-between align-items-center">
-                    <div>
-                      <strong>{name}</strong>
-                    </div>
-                    <div className="text-success fw-bold">{formatMoney(amount_cents)}</div>
-                  </div>
-                </Col>
-              ))}
-            </div>
-          </Card.Body>
-        </Card>
-      )}
-
-      {/* Goal progress overview */}
-      {goals.length > 0 && (
-        <Card className="mt-4 border-0 shadow-sm">
-          <Card.Body>
-            <Card.Title>Goal Progress</Card.Title>
-            <div className="row g-3">
-              {goals.map((goal) => {
-                const progress = goal.target_amount_cents > 0
-                  ? Math.min((goal.current_amount_cents / goal.target_amount_cents) * 100, 100)
-                  : 0
-                return (
-                  <Col xs={12} sm={6} key={goal.id}>
-                    <div className="mb-2 d-flex justify-content-between">
-                      <strong>{goal.name}</strong>
-                      <span className="text-muted">{formatMoney(goal.current_amount_cents)} / {formatMoney(goal.target_amount_cents)}</span>
-                    </div>
-                    <div className="progress" style={{ height: '8px' }}>
-                      <div
-                        className="progress-bar bg-success"
-                        role="progressbar"
-                        style={{ width: `${progress}%` }}
-                        aria-valuenow={progress}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                      />
-                    </div>
-                    <small className="text-muted">{Math.round(progress)}% complete</small>
-                    {goal.account && <small className="text-secondary d-block mt-1">Account: {goal.account}</small>}
-                  </Col>
-                )
-              })}
-            </div>
-          </Card.Body>
-        </Card>
-      )}
-
-      {/* Quick Actions */}
-      <Card className="mt-4 border-0 shadow-sm">
-        <Card.Body>
-          <Card.Title>Quick Actions</Card.Title>
-          <div className="d-flex flex-wrap gap-2">
-            <Link to="/transactions" className="btn btn-primary me-2">
-              Add Transaction
-            </Link>
-            <Link to="/transactions" className="btn btn-success me-2">
-              Add Savings
-            </Link>
-            <Link to="/goals" className="btn btn-outline-primary">
-              Manage Goals
-            </Link>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6">
+          <h2 className="text-sm font-semibold text-slate-900 mb-3">Savings Allocations This Month</h2>
+          <div className="space-y-3">
+            {Object.entries(savingsByGoal).map(([goalId, { name, amount_cents }]) => (
+              <div key={goalId} className="flex items-center justify-between py-2 border-b border-slate-100 last:border-0">
+                <span className="text-sm text-slate-700">{name}</span>
+                <span className="text-sm font-semibold text-emerald-600">{formatMoney(amount_cents)}</span>
+              </div>
+            ))}
           </div>
-        </Card.Body>
-      </Card>
+        </div>
+      )}
+
+      {/* Goal progress */}
+      {goals.length > 0 && (
+        <div className="bg-white border border-slate-200 rounded-xl p-5 mb-6">
+          <h2 className="text-sm font-semibold text-slate-900 mb-4">Goal Progress</h2>
+          <div className="space-y-5">
+            {goals.map((goal) => {
+              const progress = goal.target_amount_cents > 0
+                ? Math.min((goal.current_amount_cents / goal.target_amount_cents) * 100, 100)
+                : 0
+              return (
+                <div key={goal.id}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-sm font-medium text-slate-700">{goal.name}</span>
+                    <span className="text-xs text-slate-500">
+                      {formatMoney(goal.current_amount_cents)} / {formatMoney(goal.target_amount_cents)}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-500 rounded-full transition-all"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-slate-400">{Math.round(progress)}% complete</span>
+                    {goal.account && <span className="text-xs text-slate-400">{goal.account}</span>}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Quick actions */}
+      <div className="flex flex-wrap gap-3">
+        <Link to="/transactions" className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+          <ArrowUpRight size={16} />
+          Add Transaction
+        </Link>
+        <Link to="/transactions" className="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors">
+          <PiggyBank size={16} />
+          Add Savings
+        </Link>
+        <Link to="/goals" className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors">
+          Manage Goals
+        </Link>
+      </div>
     </div>
   )
 }

@@ -10,7 +10,6 @@ import LocalStorageRepository from './repositories/LocalStorageRepository'
 import { useBudgetStore } from './store/useBudgetStore'
 
 // Import CSS
-import 'bootstrap/dist/css/bootstrap.min.css'
 import './index.css'
 import './App.css'
 

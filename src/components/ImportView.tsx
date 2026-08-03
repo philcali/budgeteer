@@ -1,11 +1,4 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import Button from 'react-bootstrap/Button'
-import Card from 'react-bootstrap/Card'
-import Table from 'react-bootstrap/Table'
-import Form from 'react-bootstrap/Form'
-import Row from 'react-bootstrap/Row'
-import Col from 'react-bootstrap/Col'
-import ProgressBar from 'react-bootstrap/ProgressBar'
 import { Upload, Clipboard, ArrowLeft, ArrowRight, CheckCircle, AlertTriangle, Loader2, ShieldAlert } from 'lucide-react'
 import { useBudgetStore } from '../store/useBudgetStore'
 import { formatMoney } from '../utils/formatting'
@@ -60,10 +53,7 @@ function rowsToTransactions(rows: string[][], colMap: ColumnMap): MappedTransact
     const rawMerchant = merchantIdx !== null && merchantIdx < row.length ? row[merchantIdx] : ''
     const rawCategory = categoryIdx !== null && categoryIdx < row.length ? row[categoryIdx] : ''
 
-    // Try to parse the date — accept YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY
     const date = parseDate(rawDate)
-
-    // Clean the amount
     const cleanedAmount = cleanAmount(rawAmount)
     const isValidAmount = !isNaN(parseFloat(cleanedAmount)) && cleanedAmount !== '0'
     const amountNum = parseFloat(cleanedAmount) || 0
@@ -87,21 +77,16 @@ function rowsToTransactions(rows: string[][], colMap: ColumnMap): MappedTransact
 function parseDate(raw: string): string | null {
   const s = raw.trim()
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
-
-  // Try MM/DD/YYYY
   const usMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
   if (usMatch) {
     const [, month, day, year] = usMatch
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+    return year + '-' + month.padStart(2, '0') + '-' + day.padStart(2, '0')
   }
-
-  // Try DD/MM/YYYY
   const euMatch = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/)
   if (euMatch) {
     const [, day, month, year] = euMatch
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+    return year + '-' + month.padStart(2, '0') + '-' + day.padStart(2, '0')
   }
-
   return null
 }
 
@@ -150,12 +135,10 @@ function ImportView() {
 
       const text = await extractPdfText(file)
       if (!text || text.trim().length < 50) {
-        // No meaningful text — likely a scanned PDF
         setIsScannedPdf(true)
         return
       }
 
-      // Analyze the text (pass bank hint)
       const analysis = analyzePdfText(text, bankHint)
       setPdfAnalysis(analysis)
       setDetectedBank(analysis.bank)
@@ -165,7 +148,6 @@ function ImportView() {
         return
       }
 
-      // Bank-specific parsing — use hint to drive which parser
       if (analysis.bank === 'chase' && analysis.textType === 'prose') {
         const parsed = parseChaseStatement(text)
         if (parsed.length > 0) {
@@ -177,7 +159,6 @@ function ImportView() {
       return
     }
 
-    // CSV / TSV
     setIsPdfSource(false)
     setIsScannedPdf(false)
     setPdfAnalysis(null)
@@ -217,7 +198,6 @@ function ImportView() {
   const handleContinueFromUpload = useCallback(() => {
     if (!rawText.trim()) return
 
-    // Chase parsed transactions — skip straight to preview
     if (chaseTransactions && chaseTransactions.length > 0) {
       setMapped(chaseTransactions)
       setStep('preview')
@@ -328,561 +308,464 @@ function ImportView() {
 
   return (
     <div>
-      <Row className="align-items-center mb-4">
-        <Col xs={6}>
-          <h2>Import Transactions</h2>
-        </Col>
-      </Row>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Import Transactions</h1>
+      </div>
 
       {/* Step indicator */}
-      <div className="mb-4">
-        <div className="d-flex align-items-center gap-2">
+      <div className="mb-6">
+        <div className="flex items-center gap-2">
           {['upload', 'map', 'preview', 'import'].map((s, i) => (
-            <div key={s} className="d-flex align-items-center">
+            <div key={s} className="flex items-center">
               <div
-                className={`d-flex align-items-center justify-content-center rounded-circle ${
-                  i < currentStepIndex
-                    ? 'bg-success text-white'
-                    : i === currentStepIndex
-                    ? 'bg-primary text-white'
-                    : 'bg-secondary text-white'
-                }`}
+                className={'flex items-center justify-center rounded-full ' + (i < currentStepIndex ? 'bg-emerald-500 text-white' : i === currentStepIndex ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500')}
                 style={{ width: 32, height: 32 }}
               >
-                {i < currentStepIndex ? <CheckCircle size={18} /> : <span className="small">{i + 1}</span>}
+                {i < currentStepIndex ? <CheckCircle size={18} /> : <span className="text-xs">{i + 1}</span>}
               </div>
               {i < 3 && (
                 <div
-                  className={`mx-2 ${i < currentStepIndex ? 'bg-success' : 'bg-secondary'}`}
+                  className={'mx-2 ' + (i < currentStepIndex ? 'bg-emerald-400' : 'bg-slate-200')}
                   style={{ width: 40, height: 3 }}
                 />
               )}
-              <span className={`ms-2 small ${i === currentStepIndex ? 'fw-bold' : ''}`}>{stepLabels[s as WizardStep]}</span>
+              <span className={'ml-2 text-sm ' + (i === currentStepIndex ? 'font-semibold' : 'text-slate-500')}>{stepLabels[s as WizardStep]}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Step content */}
-      <Card>
-        <Card.Body>
-          {step === 'upload' && (
-            <div className="text-center">
-              <Card.Title className="mb-3">Import from CSV, TSV, or PDF</Card.Title>
-              <div
-                className="border border-2 border-dashed rounded p-5 mb-3"
-                style={{ cursor: 'pointer' }}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload size={48} className="text-muted mb-3" />
-                <p className="text-muted mb-2">Drag & drop a CSV or PDF file here, or click to browse</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".csv,.pdf,text/csv,application/pdf"
-                  className="d-none"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) handleFileUpload(file)
-                  }}
-                />
-              </div>
-
-              {/* Scanned PDF warning */}
-              {isScannedPdf && (
-                <div className="alert alert-warning d-flex align-items-start gap-2 mb-3 text-start" role="alert">
-                  <AlertTriangle size={18} className="flex-shrink-0 mt-1" />
-                  <div>
-                    <strong>This PDF appears to be a scanned image</strong> — no text layer was found.
-                    <ul className="mb-0 mt-1">
-                      <li>Most online banking exports are text-based and will work fine.</li>
-                      <li>If your bank only provides scanned statements, you'll need to export as CSV instead.</li>
-                    </ul>
-                  </div>
-                </div>
-              )}
-
-              {/* Chase auto-parsed success */}
-              {isPdfSource && !isScannedPdf && chaseTransactions && chaseTransactions.length > 0 && (
-                <div className="alert alert-success d-flex align-items-start gap-2 mb-3 text-start" role="alert">
-                  <CheckCircle size={18} className="flex-shrink-0 mt-1" />
-                  <div>
-                    <strong>Chase statement detected</strong> — we've parsed{' '}
-                    <strong>{chaseTransactions.length} transactions</strong> automatically.
-                    <p className="mb-0 mt-1 small">
-                      Click Continue to review and import. You can edit descriptions and categories in the next step.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Parsed transactions preview table (bank-specific parsing) */}
-              {isPdfSource && !isScannedPdf && chaseTransactions && chaseTransactions.length > 0 && (
-                <div className="mb-3">
-                  <div className="d-flex justify-content-between align-items-center mb-2">
-                    <span className="fw-bold small text-muted">
-                      Parsed Transactions ({chaseTransactions.length})
-                    </span>
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="p-0 text-muted"
-                      onClick={() => setShowAllImportRows(!showAllImportRows)}
-                    >
-                      {showAllImportRows ? 'Show fewer' : `Show all ${chaseTransactions.length} rows`}
-                    </Button>
-                  </div>
-                  <div className="table-responsive">
-                    <Table striped hover size="sm" className="mb-0">
-                      <thead>
-                        <tr>
-                          <th style={{ width: 110 }}>Date</th>
-                          <th>Merchant / Description</th>
-                          <th style={{ width: 80, textAlign: 'right' }}>Amount</th>
-                          <th style={{ width: 70, textAlign: 'center' }}>Type</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(showAllImportRows ? chaseTransactions : chaseTransactions.slice(0, 10)).map((tx, i) => (
-                          <tr key={i} className={!tx.isValid ? 'table-danger' : ''}>
-                            <td>{tx.date || '-'}</td>
-                            <td>{tx.merchant || '-'}</td>
-                            <td className={tx.type === 'expense' ? 'text-danger' : 'text-success'} style={{ textAlign: 'right', fontFamily: 'monospace' }}>
-                              {formatMoney(Math.round((parseFloat(cleanAmount(tx.amount)) || 0) * 100))}
-                            </td>
-                            <td className="text-center">
-                              <span className={`badge bg-${tx.type === 'expense' ? 'danger' : 'success'}`}>
-                                {tx.type === 'expense' ? '−' : '+'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
-                  </div>
-                </div>
-              )}
-
-              {/* Unsupported bank warning */}
-              {isPdfSource && !isScannedPdf && pdfAnalysis && pdfAnalysis.bank === 'unknown' && (
-                <div className="alert alert-info d-flex align-items-start gap-2 mb-3 text-start" role="alert">
-                  <ShieldAlert size={18} className="flex-shrink-0 mt-1" />
-                  <div>
-                    <strong>We couldn't auto-detect your bank.</strong>
-                    <p className="mb-1 mt-1">
-                      Try typing your bank name in the <strong>"Bank / Statement Source"</strong> field above
-                      (e.g. <em>Chase Bank</em>, <em>Wells Fargo</em>, <em>Bank of America</em>).
-                    </p>
-                    <p className="mb-0">
-                      Or paste the raw text below and we'll parse it using CSV rules.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* CSV-like PDF badge */}
-              {isPdfSource && !isScannedPdf && pdfAnalysis && pdfAnalysis.textType === 'csv-like' && (
-                <div className="d-flex justify-content-center gap-2 mb-3">
-                  <span className="badge bg-success">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="me-1"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    PDF with structured data — will use CSV parsing
-                  </span>
-                </div>
-              )}
-
-              {/* Bank hint input (PDF only) */}
-              {isPdfSource && !isScannedPdf && (
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    Bank / Statement Source{' '}
-                    <span className="text-muted fw-normal">(optional — helps us parse correctly)</span>
-                  </Form.Label>
-                  <div className="d-flex gap-2">
-                    <Form.Control
-                      type="text"
-                      placeholder="e.g. Chase Bank, Wells Fargo, Bank of America"
-                      value={bankHint}
-                      onChange={(e) => setBankHint(e.target.value)}
-                    />
-                    {detectedBank && detectedBank !== 'unknown' && (
-                      <span className="badge bg-success align-self-center">
-                        Detected: {detectedBank === 'chase' ? 'Chase' : detectedBank === 'wells-fargo' ? 'Wells Fargo' : detectedBank === 'bofa' ? 'Bank of America' : 'Capital One'}
-                      </span>
-                    )}
-                  </div>
-                  <Form.Text className="text-muted">
-                    Type your bank name to help us use the right parsing rules. You can also leave it blank and we'll try to auto-detect it.
-                  </Form.Text>
-                </Form.Group>
-              )}
-
-              <div className="d-flex justify-content-center gap-2 mb-3">
-                <Button variant="outline-secondary" onClick={handlePaste}>
-                  <Clipboard size={16} className="me-1" />
-                  Paste from clipboard
-                </Button>
-              </div>
-              <Form.Group className="mb-3">
-                <Form.Label>Or paste your data below</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={6}
-                  placeholder="Date,Amount,Description&#10;2024-01-01,100,Groceries&#10;2024-01-02,-50,Transfer"
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                />
-              </Form.Group>
-              <Button
-                variant="primary"
-                onClick={handleContinueFromUpload}
-                disabled={!rawText.trim()}
-              >
-                Continue <ArrowRight size={16} className="ms-1" />
-              </Button>
+      <div className="bg-white border border-slate-200 rounded-xl p-6">
+        {step === 'upload' && (
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-slate-900 mb-3">Import from CSV, TSV, or PDF</h2>
+            <div
+              className="border-2 border-dashed border-slate-300 rounded-xl p-10 mb-3 cursor-pointer hover:border-blue-400 transition-colors"
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload size={48} className="text-slate-400 mb-3 mx-auto" />
+              <p className="text-slate-500 mb-2">Drag & drop a CSV or PDF file here, or click to browse</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.pdf,text/csv,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleFileUpload(file)
+                }}
+              />
             </div>
-          )}
 
-          {step === 'map' && parsed && (
-            <div>
-              <Card.Title className="mb-3">Map your columns</Card.Title>
-              <p className="text-muted mb-3">
-                We auto-detected your columns. Adjust any mappings below if needed.
-              </p>
+            {isScannedPdf && (
+              <div className="flex items-start gap-3 mb-3 p-4 bg-amber-50 border border-amber-200 rounded-lg text-start" role="alert">
+                <AlertTriangle size={18} className="flex-shrink-0 mt-0.5 text-amber-600" />
+                <div>
+                  <strong className="text-amber-800">This PDF appears to be a scanned image</strong> — no text layer was found.
+                  <ul className="mb-0 mt-1 text-sm text-amber-700">
+                    <li>Most online banking exports are text-based and will work fine.</li>
+                    <li>If your bank only provides scanned statements, you'll need to export as CSV instead.</li>
+                  </ul>
+                </div>
+              </div>
+            )}
 
-              <Row className="mb-3">
-                <Col md={6}>
-                  <Form.Label>Date Column</Form.Label>
-                  <Form.Select
-                    value={colMap?.date ?? -1}
-                    onChange={(e) => handleMapChange('date', e.target.value === '-1' ? null : Number(e.target.value))}
-                  >
-                    <option value={-1}>— skip —</option>
-                    {parsed.headers.map((h, i) => (
-                      <option key={i} value={i}>
-                        {h}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-                <Col md={6}>
-                  <Form.Label>Amount Column</Form.Label>
-                  <Form.Select
-                    value={colMap?.amount ?? -1}
-                    onChange={(e) => handleMapChange('amount', e.target.value === '-1' ? null : Number(e.target.value))}
-                  >
-                    <option value={-1}>— skip —</option>
-                    {parsed.headers.map((h, i) => (
-                      <option key={i} value={i}>
-                        {h}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-              </Row>
+            {isPdfSource && !isScannedPdf && chaseTransactions && chaseTransactions.length > 0 && (
+              <div className="flex items-start gap-3 mb-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-start" role="alert">
+                <CheckCircle size={18} className="flex-shrink-0 mt-0.5 text-emerald-600" />
+                <div>
+                  <strong className="text-emerald-800">Chase statement detected</strong> — we've parsed <strong>{chaseTransactions.length} transactions</strong> automatically.
+                  <p className="mb-0 mt-1 text-sm text-emerald-700">Click Continue to review and import.</p>
+                </div>
+              </div>
+            )}
 
-              <Row className="mb-3">
-                <Col md={6}>
-                  <Form.Label>Merchant / Payee Column</Form.Label>
-                  <Form.Select
-                    value={colMap?.merchant ?? -1}
-                    onChange={(e) => handleMapChange('merchant', e.target.value === '-1' ? null : Number(e.target.value))}
+            {isPdfSource && !isScannedPdf && chaseTransactions && chaseTransactions.length > 0 && (
+              <div className="mb-3 text-left">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold text-sm text-slate-500">Parsed Transactions ({chaseTransactions.length})</span>
+                  <button
+                    className="text-sm text-slate-500 hover:text-slate-700"
+                    onClick={() => setShowAllImportRows(!showAllImportRows)}
                   >
-                    <option value={-1}>— skip —</option>
-                    {parsed.headers.map((h, i) => (
-                      <option key={i} value={i}>
-                        {h}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-                <Col md={6}>
-                  <Form.Label>Category Column</Form.Label>
-                  <Form.Select
-                    value={colMap?.category ?? -1}
-                    onChange={(e) => handleMapChange('category', e.target.value === '-1' ? null : Number(e.target.value))}
-                  >
-                    <option value={-1}>— skip —</option>
-                    {parsed.headers.map((h, i) => (
-                      <option key={i} value={i}>
-                        {h}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </Col>
-              </Row>
+                    {showAllImportRows ? 'Show fewer' : 'Show all ' + chaseTransactions.length + ' rows'}
+                  </button>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-2 px-3 font-medium text-slate-500" style={{ width: 110 }}>Date</th>
+                        <th className="text-left py-2 px-3 font-medium text-slate-500">Merchant / Description</th>
+                        <th className="text-right py-2 px-3 font-medium text-slate-500" style={{ width: 80 }}>Amount</th>
+                        <th className="text-center py-2 px-3 font-medium text-slate-500" style={{ width: 70 }}>Type</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(showAllImportRows ? chaseTransactions : chaseTransactions.slice(0, 10)).map((tx, i) => (
+                        <tr key={i} className={!tx.isValid ? 'bg-rose-50' : 'border-t border-slate-100'}>
+                          <td className="py-2 px-3">{tx.date || '-'}</td>
+                          <td className="py-2 px-3">{tx.merchant || '-'}</td>
+                          <td className={'py-2 px-3 text-right font-mono ' + (tx.type === 'expense' ? 'text-rose-600' : 'text-emerald-600')}>{formatMoney(Math.round((parseFloat(cleanAmount(tx.amount)) || 0) * 100))}</td>
+                          <td className="text-center py-2 px-3">
+                            <span className={'inline-flex px-2 py-0.5 rounded-md text-xs font-medium ' + (tx.type === 'expense' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700')}>{tx.type === 'expense' ? '−' : '+'}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
-              {/* Preview of first 5 rows with current mapping */}
-              <Card className="mb-3">
-                <Card.Header>Preview (first 5 rows)</Card.Header>
-                <Table striped responsive size="sm" className="mb-0">
+            {isPdfSource && !isScannedPdf && pdfAnalysis && pdfAnalysis.bank === 'unknown' && (
+              <div className="flex items-start gap-3 mb-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-start" role="alert">
+                <ShieldAlert size={18} className="flex-shrink-0 mt-0.5 text-blue-600" />
+                <div>
+                  <strong className="text-blue-800">We couldn't auto-detect your bank.</strong>
+                  <p className="mb-1 mt-1 text-sm text-blue-700">Try typing your bank name in the <strong>"Bank / Statement Source"</strong> field above (e.g. <em>Chase Bank</em>, <em>Wells Fargo</em>, <em>Bank of America</em>).</p>
+                  <p className="mb-0 text-sm text-blue-700">Or paste the raw text below and we'll parse it using CSV rules.</p>
+                </div>
+              </div>
+            )}
+
+            {isPdfSource && !isScannedPdf && pdfAnalysis && pdfAnalysis.textType === 'csv-like' && (
+              <div className="flex justify-center gap-2 mb-3">
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  PDF with structured data — will use CSV parsing
+                </span>
+              </div>
+            )}
+
+            {isPdfSource && !isScannedPdf && (
+              <div className="mb-3 text-left">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Bank / Statement Source{' '}
+                  <span className="text-slate-400 font-normal">(optional — helps us parse correctly)</span>
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="e.g. Chase Bank, Wells Fargo, Bank of America"
+                    value={bankHint}
+                    onChange={(e) => setBankHint(e.target.value)}
+                    className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  {detectedBank && detectedBank !== 'unknown' && (
+                    <span className="inline-flex items-center px-3 py-1 bg-emerald-100 text-emerald-700 text-sm font-medium rounded-lg">
+                      Detected: {detectedBank === 'chase' ? 'Chase' : detectedBank === 'wells-fargo' ? 'Wells Fargo' : detectedBank === 'bofa' ? 'Bank of America' : 'Capital One'}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-400 mt-1">Type your bank name to help us use the right parsing rules.</p>
+              </div>
+            )}
+
+            <div className="flex justify-center gap-2 mb-3">
+              <button onClick={handlePaste} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+                <Clipboard size={16} />
+                Paste from clipboard
+              </button>
+            </div>
+            <div className="mb-3 text-left">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Or paste your data below</label>
+              <textarea
+                rows={6}
+                placeholder="Date,Amount,Description\n2024-01-01,100,Groceries\n2024-01-02,-50,Transfer"
+                value={rawText}
+                onChange={(e) => setRawText(e.target.value)}
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            <button
+              onClick={handleContinueFromUpload}
+              disabled={!rawText.trim()}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Continue <ArrowRight size={16} />
+            </button>
+          </div>
+        )}
+
+        {step === 'map' && parsed && (
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 mb-2">Map your columns</h2>
+            <p className="text-slate-500 text-sm mb-4">We auto-detected your columns. Adjust any mappings below if needed.</p>
+
+            <div className="grid md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Date Column</label>
+                <select
+                  value={colMap?.date ?? -1}
+                  onChange={(e) => handleMapChange('date', e.target.value === '-1' ? null : Number(e.target.value))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={-1}>— skip —</option>
+                  {parsed.headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Amount Column</label>
+                <select
+                  value={colMap?.amount ?? -1}
+                  onChange={(e) => handleMapChange('amount', e.target.value === '-1' ? null : Number(e.target.value))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={-1}>— skip —</option>
+                  {parsed.headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Merchant / Payee Column</label>
+                <select
+                  value={colMap?.merchant ?? -1}
+                  onChange={(e) => handleMapChange('merchant', e.target.value === '-1' ? null : Number(e.target.value))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={-1}>— skip —</option>
+                  {parsed.headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Category Column</label>
+                <select
+                  value={colMap?.category ?? -1}
+                  onChange={(e) => handleMapChange('category', e.target.value === '-1' ? null : Number(e.target.value))}
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={-1}>— skip —</option>
+                  {parsed.headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-slate-900 mb-2">Preview (first 5 rows)</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
                   <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Amount</th>
-                      <th>Merchant</th>
-                      <th>Category</th>
-                      <th>Type</th>
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left py-2 px-3 font-medium text-slate-500">Date</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-500">Amount</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-500">Merchant</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-500">Category</th>
+                      <th className="text-left py-2 px-3 font-medium text-slate-500">Type</th>
                     </tr>
                   </thead>
                   <tbody>
                     {parsed.rows.slice(0, 5).map((row, i) => {
                       const tx = rowsToTransactions([row], colMap!)[0]
                       return (
-                        <tr key={i}>
-                          <td>{tx.date || '-'}</td>
-                          <td className={tx.type === 'expense' ? 'text-danger' : 'text-success'}>
-                            {formatMoney(Math.round((parseFloat(cleanAmount(tx.amount)) || 0) * 100))}
-                          </td>
-                          <td>{tx.merchant || '-'}</td>
-                          <td>{tx.category || '-'}</td>
-                          <td>
-                            <span className={`badge bg-${tx.type === 'expense' ? 'danger' : 'success'}`}>
-                              {tx.type}
-                            </span>
+                        <tr key={i} className="border-t border-slate-100">
+                          <td className="py-2 px-3">{tx.date || '-'}</td>
+                          <td className={'py-2 px-3 ' + (tx.type === 'expense' ? 'text-rose-600' : 'text-emerald-600')}>{formatMoney(Math.round((parseFloat(cleanAmount(tx.amount)) || 0) * 100))}</td>
+                          <td className="py-2 px-3">{tx.merchant || '-'}</td>
+                          <td className="py-2 px-3">{tx.category || '-'}</td>
+                          <td className="py-2 px-3">
+                            <span className={'inline-flex px-2 py-0.5 rounded-md text-xs font-medium ' + (tx.type === 'expense' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700')}>{tx.type}</span>
                           </td>
                         </tr>
                       )
                     })}
                   </tbody>
-                </Table>
-              </Card>
-
-              <div className="d-flex justify-content-between">
-                <Button variant="outline-secondary" onClick={() => { setStep('upload'); setIsPdfSource(false); setIsScannedPdf(false); setShowAllImportRows(false); }}>
-                  <ArrowLeft size={16} className="me-1" />
-                  Back
-                </Button>
-                <Button variant="primary" onClick={handleContinueFromMap}>
-                  Continue <ArrowRight size={16} className="ms-1" />
-                </Button>
+                </table>
               </div>
             </div>
-          )}
 
-          {step === 'preview' && mapped.length > 0 && (
-            <div>
-              <Card.Title className="mb-3">Preview imported transactions</Card.Title>
+            <div className="flex justify-between">
+              <button onClick={() => { setStep('upload'); setIsPdfSource(false); setIsScannedPdf(false); setShowAllImportRows(false); }} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+                <ArrowLeft size={16} />
+                Back
+              </button>
+              <button onClick={handleContinueFromMap} className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
+                Continue <ArrowRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
 
-              {/* Summary */}
-              <Row className="mb-3">
-                <Col md={4}>
-                  <Card className="text-center">
-                    <Card.Body>
-                      <Card.Title className="small text-muted">Total Income</Card.Title>
-                      <Card.Text className="text-success fw-bold fs-5">{formatMoney(Math.round(totalIncome * 100))}</Card.Text>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={4}>
-                  <Card className="text-center">
-                    <Card.Body>
-                      <Card.Title className="small text-muted">Total Expenses</Card.Title>
-                      <Card.Text className="text-danger fw-bold fs-5">{formatMoney(Math.round(totalExpense * 100))}</Card.Text>
-                    </Card.Body>
-                  </Card>
-                </Col>
-                <Col md={4}>
-                  <Card className="text-center">
-                    <Card.Body>
-                      <Card.Title className="small text-muted">Net</Card.Title>
-                      <Card.Text className={`fw-bold fs-5 ${net >= 0 ? 'text-success' : 'text-danger'}`}>
-                        {formatMoney(Math.round(net * 100))}
-                      </Card.Text>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              </Row>
+        {step === 'preview' && mapped.length > 0 && (
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900 mb-3">Preview imported transactions</h2>
 
-              {/* Duplicate warning */}
-              {duplicates.length > 0 && (
-                <div className="alert alert-info d-flex align-items-start gap-2 mb-3">
-                  <ShieldAlert size={18} className="flex-shrink-0 mt-1" />
-                  <div className="w-100">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <span className="fw-bold">
-                        {duplicates.length} potential duplicate{duplicates.length !== 1 ? 's' : ''} detected
-                      </span>
-                      <Button
-                        variant="outline-secondary"
-                        size="sm"
+            <div className="grid md:grid-cols-3 gap-4 mb-4">
+              <div className="text-center p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                <p className="text-xs font-medium text-emerald-600">Total Income</p>
+                <p className="text-xl font-bold text-emerald-700">{formatMoney(Math.round(totalIncome * 100))}</p>
+              </div>
+              <div className="text-center p-4 bg-rose-50 border border-rose-200 rounded-xl">
+                <p className="text-xs font-medium text-rose-600">Total Expenses</p>
+                <p className="text-xl font-bold text-rose-700">{formatMoney(Math.round(totalExpense * 100))}</p>
+              </div>
+              <div className="text-center p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                <p className="text-xs font-medium text-slate-600">Net</p>
+                <p className={'text-xl font-bold ' + (net >= 0 ? 'text-emerald-700' : 'text-rose-700')}>{formatMoney(Math.round(net * 100))}</p>
+              </div>
+            </div>
+
+            {duplicates.length > 0 && (
+              <div className="flex items-start gap-3 mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <ShieldAlert size={18} className="flex-shrink-0 mt-0.5 text-blue-600" />
+                <div className="w-full">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-semibold text-sm text-blue-800">{duplicates.length} potential duplicate{duplicates.length !== 1 ? 's' : ''} detected</span>
+                    <button
+                      className="text-sm text-blue-700 hover:text-blue-900 px-3 py-1 border border-blue-300 rounded-lg hover:bg-blue-100 transition-colors"
+                      onClick={() => {
+                        const allSkipped = new Set(duplicates.map((d) => d.mappedIndex))
+                        setSkippedIndices((prev) => (prev.size === allSkipped.size ? new Set() : allSkipped))
+                      }}
+                    >
+                      {skippedIndices.size === duplicates.length ? 'Unskip All' : 'Skip All'}
+                    </button>
+                  </div>
+                  <p className="text-sm text-blue-600">These rows match existing transactions by date, amount, or merchant. Click a row to skip it.</p>
+                </div>
+              </div>
+            )}
+
+            {mapped.some((t) => !t.isValid) && (
+              <div className="flex items-center gap-3 mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <AlertTriangle size={18} className="text-amber-600" />
+                <span className="text-sm text-amber-800">
+                  {mapped.filter((t) => !t.isValid).length} row{mapped.filter((t) => !t.isValid).length !== 1 ? 's' : ''} could not be parsed. Check the error column below.
+                </span>
+              </div>
+            )}
+
+            <div className="overflow-x-auto mb-4">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    <th className="text-left py-2 px-3 font-medium text-slate-500">Date</th>
+                    <th className="text-left py-2 px-3 font-medium text-slate-500">Merchant</th>
+                    <th className="text-left py-2 px-3 font-medium text-slate-500">Category</th>
+                    <th className="text-left py-2 px-3 font-medium text-slate-500">Type</th>
+                    <th className="text-left py-2 px-3 font-medium text-slate-500">Amount</th>
+                    <th className="text-left py-2 px-3 font-medium text-slate-500">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayRows.map((tx, i) => {
+                    const dup = duplicates.find((d) => d.mappedIndex === i)
+                    const isSkipped = skippedIndices.has(i)
+                    return (
+                      <tr
+                        key={i}
+                        className={(isSkipped ? 'bg-slate-100' : !tx.isValid ? 'bg-rose-50' : 'border-t border-slate-100') + (dup ? ' cursor-pointer hover:bg-blue-50' : '')}
                         onClick={() => {
-                          const allSkipped = new Set(duplicates.map((d) => d.mappedIndex))
-                          setSkippedIndices((prev) => (prev.size === allSkipped.size ? new Set() : allSkipped))
-                        }}
-                      >
-                        {skippedIndices.size === duplicates.length ? 'Unskip All' : 'Skip All'}
-                      </Button>
-                    </div>
-                    <div className="small text-muted">
-                      These rows match existing transactions by date, amount, or merchant. Click a row to skip it.
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Invalid rows warning */}
-              {mapped.some((t) => !t.isValid) && (
-                <div className="alert alert-warning d-flex align-items-center gap-2 mb-3">
-                  <AlertTriangle size={18} />
-                  <span>
-                    {mapped.filter((t) => !t.isValid).length} row{mapped.filter((t) => !t.isValid).length !== 1 ? 's' : ''} could not be parsed.
-                    Check the <code className="text-danger">error</code> column below.
-                  </span>
-                </div>
-              )}
-
-              {/* Transaction table */}
-              <div className="table-responsive mb-3">
-                <Table striped responsive size="sm">
-                  <thead>
-                    <tr>
-                      <th>Date</th>
-                      <th>Merchant</th>
-                      <th>Category</th>
-                      <th>Type</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayRows.map((tx, i) => {
-                      const dup = duplicates.find((d) => d.mappedIndex === i)
-                      const isSkipped = skippedIndices.has(i)
-                      return (
-                        <tr
-                          key={i}
-                          className={
-                            isSkipped
-                              ? 'table-secondary'
-                              : tx.isValid
-                              ? ''
-                              : 'table-danger'
+                          if (dup) {
+                            setSkippedIndices((prev) => {
+                              const next = new Set(prev)
+                              if (next.has(i)) next.delete(i)
+                              else next.add(i)
+                              return next
+                            })
                           }
-                          onClick={() => {
-                            if (dup) {
-                              setSkippedIndices((prev) => {
-                                const next = new Set(prev)
-                                if (next.has(i)) next.delete(i)
-                                else next.add(i)
-                                return next
-                              })
-                            }
-                          }}
-                          style={{ cursor: dup ? 'pointer' : 'default' }}
-                          title={dup ? `Click to ${isSkipped ? 'unskip' : 'skip'} — matches "${dup.duplicate.existingMerchant}" on ${dup.duplicate.existingDate}` : undefined}
-                        >
-                          <td>{tx.date || '-'}</td>
-                          <td>{tx.merchant || '-'}</td>
-                          <td>{tx.category || '-'}</td>
-                          <td>
-                            <span className={`badge bg-${tx.type === 'expense' ? 'danger' : 'success'}`}>
-                              {tx.type}
+                        }}
+                        title={dup ? 'Click to ' + (isSkipped ? 'unskip' : 'skip') + ' — matches ' + dup.duplicate.existingMerchant + ' on ' + dup.duplicate.existingDate : undefined}
+                      >
+                        <td className="py-2 px-3">{tx.date || '-'}</td>
+                        <td className="py-2 px-3">{tx.merchant || '-'}</td>
+                        <td className="py-2 px-3">{tx.category || '-'}</td>
+                        <td className="py-2 px-3">
+                          <span className={'inline-flex px-2 py-0.5 rounded-md text-xs font-medium ' + (tx.type === 'expense' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700')}>{tx.type}</span>
+                        </td>
+                        <td className={'py-2 px-3 ' + (tx.type === 'expense' ? 'text-rose-600' : 'text-emerald-600')}>{formatMoney(Math.round((parseFloat(cleanAmount(tx.amount)) || 0) * 100))}</td>
+                        <td className="py-2 px-3">
+                          {isSkipped ? (
+                            <span className="text-slate-400" title="Skipped">⊘</span>
+                          ) : dup ? (
+                            <span
+                              className={'inline-flex px-2 py-0.5 rounded-md text-xs font-medium ' + (dup.duplicate.confidence === 'high' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700')}
+                              title={'Confidence: ' + dup.duplicate.confidence}
+                            >
+                              {dup.duplicate.confidence === 'high' ? '⚠' : 'ℹ'} Duplicate
                             </span>
-                          </td>
-                          <td className={tx.type === 'expense' ? 'text-danger' : 'text-success'}>
-                            {formatMoney(Math.round((parseFloat(cleanAmount(tx.amount)) || 0) * 100))}
-                          </td>
-                          <td>
-                            {isSkipped ? (
-                              <span className="text-muted" title="Skipped">⊘</span>
-                            ) : dup ? (
-                              <span
-                                className={`badge bg-${dup.duplicate.confidence === 'high' ? 'warning text-dark' : 'info'}`}
-                                title={`Confidence: ${dup.duplicate.confidence}`}
-                              >
-                                {dup.duplicate.confidence === 'high' ? '⚠' : 'ℹ'} Duplicate
-                              </span>
-                            ) : tx.isValid ? (
-                              <span className="text-success">✓</span>
-                            ) : (
-                              <span className="text-danger" title={tx.error}>✗</span>
-                            )}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </Table>
-              </div>
-
-              {mapped.length > 20 && (
-                <div className="text-center mb-3">
-                  <Button variant="outline-secondary" size="sm" onClick={() => setShowAllRows(!showAllRows)}>
-                    {showAllRows ? 'Show fewer' : `Show all ${mapped.length} rows`}
-                  </Button>
-                </div>
-              )}
-
-              {/* Progress indicator during import */}
-              {importing && (
-                <div className="mb-3">
-                  <div className="d-flex justify-content-between mb-1">
-                    <span className="small text-muted">Importing transactions...</span>
-                    <span className="small text-muted">{importProgress}%</span>
-                  </div>
-                  <ProgressBar now={importProgress} animated className="mb-1" />
-                  <div className="text-center">
-                    <Loader2 size={16} className="text-primary" style={{ animation: 'spin 1s linear infinite' }} />
-                  </div>
-                </div>
-              )}
-
-              <div className="d-flex justify-content-between">
-                <Button variant="outline-secondary" onClick={() => setStep('map')}>
-                  <ArrowLeft size={16} className="me-1" />
-                  Back to Mapping
-                </Button>
-                <Button variant="success" onClick={handleImport} disabled={importing}>
-                  {importing ? 'Importing...' : 'Import Transactions'}
-                </Button>
-              </div>
+                          ) : tx.isValid ? (
+                            <span className="text-emerald-600">✓</span>
+                          ) : (
+                            <span className="text-rose-600" title={tx.error}>✗</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
-          )}
 
-          {step === 'import' && (
-            <div className="text-center">
-              <CheckCircle size={64} className="text-success mb-3" />
-              <Card.Title className="mb-3">Import Complete</Card.Title>
-
-              <div className="mb-3">
-                <p className="mb-1">
-                  {importResults.filter((r) => r === 'success').length} imported successfully
-                </p>
-                {importResults.filter((r) => r === 'skipped').length > 0 && (
-                  <p className="text-muted mb-0">
-                    {importResults.filter((r) => r === 'skipped').length} skipped (duplicates)
-                  </p>
-                )}
-                {importResults.filter((r) => r === 'error').length > 0 && (
-                  <p className="text-danger mb-0">
-                    {importResults.filter((r) => r === 'error').length} failed
-                  </p>
-                )}
+            {mapped.length > 20 && (
+              <div className="text-center mb-4">
+                <button onClick={() => setShowAllRows(!showAllRows)} className="text-sm text-slate-600 hover:text-slate-800 px-3 py-1 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+                  {showAllRows ? 'Show fewer' : 'Show all ' + mapped.length + ' rows'}
+                </button>
               </div>
+            )}
 
-              {importError && (
-                <div className="alert alert-danger mb-3" role="alert">
-                  {importError}
+            {importing && (
+              <div className="mb-4">
+                <div className="flex justify-between mb-1">
+                  <span className="text-xs text-slate-500">Importing transactions...</span>
+                  <span className="text-xs text-slate-500">{importProgress}%</span>
                 </div>
-              )}
-
-              <div className="d-flex justify-content-center gap-2">
-                <Button variant="outline-primary" onClick={() => { setStep('upload'); setIsPdfSource(false); setIsScannedPdf(false); setShowAllImportRows(false); }}>
-                  Import Another File
-                </Button>
-                <Button variant="outline-secondary" onClick={() => downloadCSV(allTransactions, undefined, 'budgeteer-export.csv')}>
-                  Export CSV
-                </Button>
-                <Button variant="primary" onClick={() => (window.location.href = '/transactions')}>
-                  View Transactions
-                </Button>
+                <div className="h-2 bg-slate-200 rounded-full overflow-hidden mb-1">
+                  <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: String(importProgress) + '%' }} />
+                </div>
+                <div className="text-center">
+                  <Loader2 size={16} className="text-blue-500" style={{ animation: 'spin 1s linear infinite' }} />
+                </div>
               </div>
+            )}
+
+            <div className="flex justify-between">
+              <button onClick={() => setStep('map')} className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
+                <ArrowLeft size={16} />
+                Back to Mapping
+              </button>
+              <button onClick={handleImport} disabled={importing} className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50">
+                {importing ? 'Importing...' : 'Import Transactions'}
+              </button>
             </div>
-          )}
-        </Card.Body>
-      </Card>
+          </div>
+        )}
+
+        {step === 'import' && (
+          <div className="text-center">
+            <CheckCircle size={64} className="text-emerald-500 mb-3 mx-auto" />
+            <h2 className="text-lg font-semibold text-slate-900 mb-3">Import Complete</h2>
+
+            <div className="mb-4">
+              <p className="mb-1">{importResults.filter((r) => r === 'success').length} imported successfully</p>
+              {importResults.filter((r) => r === 'skipped').length > 0 && (
+                <p className="text-slate-500 mb-0 text-sm">{importResults.filter((r) => r === 'skipped').length} skipped (duplicates)</p>
+              )}
+              {importResults.filter((r) => r === 'error').length > 0 && (
+                <p className="text-rose-600 mb-0 text-sm">{importResults.filter((r) => r === 'error').length} failed</p>
+              )}
+            </div>
+
+            {importError && (
+              <div className="mb-4 p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm" role="alert">
+                {importError}
+              </div>
+            )}
+
+            <div className="flex justify-center gap-3">
+              <button onClick={() => { setStep('upload'); setIsPdfSource(false); setIsScannedPdf(false); setShowAllImportRows(false); }} className="px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">Import Another File</button>
+              <button onClick={() => downloadCSV(allTransactions, undefined, 'budgeteer-export.csv')} className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">Export CSV</button>
+              <button onClick={() => (window.location.href = '/transactions')} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">View Transactions</button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
