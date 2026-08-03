@@ -314,24 +314,49 @@ function ImportView() {
 
       {/* Step indicator */}
       <div className="mb-6">
-        <div className="flex items-center gap-2">
-          {['upload', 'map', 'preview', 'import'].map((s, i) => (
-            <div key={s} className="flex items-center">
-              <div
-                className={'flex items-center justify-center rounded-full ' + (i < currentStepIndex ? 'bg-emerald-500 text-white' : i === currentStepIndex ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500')}
-                style={{ width: 32, height: 32 }}
-              >
-                {i < currentStepIndex ? <CheckCircle size={18} /> : <span className="text-xs">{i + 1}</span>}
+        <div className="flex flex-col gap-0">
+          {['upload', 'map', 'preview', 'import'].map((s, i) => {
+            const isCompleted = i < currentStepIndex
+            const isCurrent = i === currentStepIndex
+            const isFuture = i > currentStepIndex
+            return (
+              <div key={s} className="flex items-start gap-3">
+                <div className="flex flex-col items-center">
+                  <div
+                    className={
+                      'flex items-center justify-center rounded-full flex-shrink-0 ' +
+                      (isCompleted
+                        ? 'bg-emerald-500 text-white'
+                        : isCurrent
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-slate-200 text-slate-400')
+                    }
+                    style={{ width: 32, height: 32 }}
+                  >
+                    {isCompleted ? <CheckCircle size={18} /> : <span className="text-xs font-medium">{i + 1}</span>}
+                  </div>
+                  {!isFuture && (
+                    <div
+                      className={'w-px flex-1 ' + (isCompleted ? 'bg-emerald-400' : 'bg-slate-200')}
+                      style={{ minHeight: 24 }}
+                    />
+                  )}
+                </div>
+                <span
+                  className={
+                    'pt-0.5 text-sm ' +
+                    (isCurrent
+                      ? 'font-semibold text-slate-900'
+                      : isCompleted
+                        ? 'text-emerald-700'
+                        : 'text-slate-400')
+                  }
+                >
+                  {stepLabels[s as WizardStep]}
+                </span>
               </div>
-              {i < 3 && (
-                <div
-                  className={'mx-2 ' + (i < currentStepIndex ? 'bg-emerald-400' : 'bg-slate-200')}
-                  style={{ width: 40, height: 3 }}
-                />
-              )}
-              <span className={'ml-2 text-sm ' + (i === currentStepIndex ? 'font-semibold' : 'text-slate-500')}>{stepLabels[s as WizardStep]}</span>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 

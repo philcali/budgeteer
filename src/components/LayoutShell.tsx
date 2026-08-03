@@ -1,5 +1,6 @@
 import React from 'react'
 import { LayoutDashboard, ListTodo, Target, Upload, Menu, X } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 
 interface LayoutShellProps {
@@ -9,7 +10,7 @@ interface LayoutShellProps {
 interface NavItem {
   label: string
   href: string
-  icon: React.ComponentType<{ size: number }>
+  icon: LucideIcon
 }
 
 const navItems: NavItem[] = [

@@ -4,6 +4,7 @@ import { useBudgetStore } from '../store/useBudgetStore'
 import type { Transaction } from '../types'
 import { formatMoney } from '../utils/formatting'
 import { ArrowUpRight, ArrowDownRight, Wallet, PiggyBank, ArrowRightLeft, ChevronDown } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell } from 'recharts'
 
 // Generate list of months for the dropdown (last 12 months + current)
@@ -31,7 +32,7 @@ function MetricCard({
 }: {
   title: string
   value: string
-  icon: React.ComponentType<{ size: number }>
+  icon: LucideIcon
   accent: 'green' | 'red' | 'blue' | 'slate'
   sub?: string
 }) {
@@ -92,7 +93,7 @@ function DashboardView() {
     .reduce((sum, t) => sum + t.amount_cents, 0)
   const monthlyExpenses = monthlyTransactions
     .filter((t) => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount_cents, 0)
+    .reduce((sum, t) => sum + Math.abs(t.amount_cents), 0)
   const monthlySavings = monthlyTransactions
     .filter((t) => t.type === 'savings')
     .reduce((sum, t) => sum + t.amount_cents, 0)
@@ -112,13 +113,13 @@ function DashboardView() {
 
   // Savings rate
   const savingsRate = monthlyIncome > 0 ? Math.round((monthlySavings / monthlyIncome) * 100) : 0
-  const availableToSave = netFlow - monthlySavings
+  const availableToSave = netFlow
 
   // Chart data
   const chartData = useMemo(() => {
     const data = [
       { name: 'Income', value: monthlyIncome, color: '#10b981' },
-      { name: 'Expenses', value: monthlyExpenses, color: '#f43f5e' },
+      { name: 'Expenses', value: Math.abs(monthlyExpenses), color: '#f43f5e' },
       { name: 'Savings', value: monthlySavings, color: '#3b82f6' },
     ]
     return data.filter((d) => d.value > 0)
@@ -260,7 +261,7 @@ function DashboardView() {
       )}
 
       {/* Quick actions */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <Link to="/transactions" className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">
           <ArrowUpRight size={16} />
           Add Transaction
