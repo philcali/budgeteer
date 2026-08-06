@@ -378,7 +378,40 @@ ELECTRONIC WITHDRAWALS
 01/05Online Store                            PPD ID: 1234567890$99.99`;
     const result = parseChaseStatement(text);
     expect(result).toHaveLength(1);
-    // Heuristic: date 01/05 < 12/15 → subtracts a year
-    expect(result[0].date).toBe('2024-01-05');
+    // Cross-year: end (01/14) < start (12/15), so year (2025) is the START year
+    // 01/05 >= 01/14 is false → stays in start year + 1 = 2026
+    expect(result[0].date).toBe('2026-01-05');
+  });
+
+  it('parses Chase credit card statement with MM/DD/YY - MM/DD/YY period format', () => {
+    const text = `06/26/26 - 07/25/26
+ELECTRONIC WITHDRAWALS
+07/22RECURRING PAYMENT-1,234.56
+DEPOSITS AND ADDITIONS
+06/27RETAIL STORE12.34
+06/27ONLINE SHOP56.78
+ELECTRONIC WITHDRAWALS
+07/01UTILITY COMPANY99.99`;
+    const result = parseChaseStatement(text);
+    expect(result).toHaveLength(4);
+    expect(result[0].date).toBe('2026-07-22');
+    expect(result[0].amount).toBe('-1234.56');
+    expect(result[1].date).toBe('2026-06-27');
+    expect(result[1].amount).toBe('12.34');
+    expect(result[2].date).toBe('2026-06-27');
+    expect(result[2].amount).toBe('56.78');
+    expect(result[3].date).toBe('2026-07-01');
+    expect(result[3].amount).toBe('-99.99');
+  });
+
+  it('handles cross-year with MM/DD/YY - MM/DD/YY format', () => {
+    const text = `12/15/25 - 01/14/26
+ELECTRONIC WITHDRAWALS
+01/05Online Store                            PPD ID: 1234567890$99.99`;
+    const result = parseChaseStatement(text);
+    expect(result).toHaveLength(1);
+    // Cross-year: end (01/14) < start (12/15), so year (2026) is the END year
+    // 01/05 < 01/14 → stays in end year = 2026
+    expect(result[0].date).toBe('2026-01-05');
   });
 });

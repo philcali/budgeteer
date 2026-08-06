@@ -216,9 +216,6 @@ export function parseChaseStatement(text: string): ParsedTransaction[] {
   const periodMatch = text.match(
     /([A-Z][a-z]+)\s+(\d{1,2}),\s*(\d{4})\s+through\s+([A-Z][a-z]+)\s+(\d{1,2}),\s*(\d{4})/,
   )
-  const startMonthName = periodMatch ? periodMatch[1] : null
-  const startDay = periodMatch ? parseInt(periodMatch[2]) : null
-  const year = periodMatch ? parseInt(periodMatch[3]) : null
 
   // Month name → number mapping
   const monthNames = [
@@ -226,10 +223,141 @@ export function parseChaseStatement(text: string): ParsedTransaction[] {
     'July', 'August', 'September', 'October', 'November', 'December',
   ]
 
+  // Reverse: number → month name (1-indexed)
+  const monthNamesRev = [
+    null, 'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ]
+
+  // Extract start/end dates and determine the statement year
+  let startMonthName: string | null = null
+  let startDay: number | null = null
+  let endMonthName: string | null = null
+  let endDay: number | null = null
+  let year: number | null = null
+
+  if (periodMatch) {
+    startMonthName = periodMatch[1]
+    startDay = parseInt(periodMatch[2])
+    endMonthName = periodMatch[4]
+    endDay = parseInt(periodMatch[5])
+    const startMonthNum = monthNames.indexOf(periodMatch[1]) + 1
+    const startNum = `${startMonthNum.toString().padStart(2, '0')}/${parseInt(periodMatch[2]).toString().padStart(2, '0')}`
+    const endMonthNum = monthNames.indexOf(periodMatch[4]) + 1
+    const endNum = `${endMonthNum.toString().padStart(2, '0')}/${parseInt(periodMatch[5]).toString().padStart(2, '0')}`
+    const startYear = parseInt(periodMatch[3])
+    const endYear = parseInt(periodMatch[6])
+    // For cross-year statements (end < start), use the end year
+    year = endNum < startNum ? endYear : startYear
+  }
+
+  // Fallback: Chase credit card statements use "06/26/26 - 07/25/26" format (MM/DD/YY - MM/DD/YY)
+  // pdf.js may insert spaces between characters, so we use \d\s*\d to match "0 6" or "06"
+  // Also detect the period line so we can skip it during transaction parsing
+  let periodLinePattern: string | null = null
+  if (!year) {
+    const d = (s: string) => parseInt(s.replace(/\s/g, ''))
+
+    // Strategy 1: Search near "Opening/Closing Date" label
+    let context: string | null = null
+    const openingLabelIdx = text.search(/Opening\/?Closing\s*Date/i)
+    if (openingLabelIdx !== -1) {
+      context = text.substring(openingLabelIdx, openingLabelIdx + 80)
+    }
+
+    // Strategy 2: Search near "Statement Period" or "Billing Period" label
+    if (!context) {
+      const stmtIdx = text.search(/Statement\s+Period|Billing\s+Period/i)
+      if (stmtIdx !== -1) {
+        context = text.substring(stmtIdx, stmtIdx + 80)
+      }
+    }
+
+    // Strategy 3: Check each line for the date range pattern (period lines have two dates)
+    if (!context) {
+      const lines = text.split('\n')
+      for (const line of lines) {
+        if (line.match(/\d{2}\/\d{2}\/\d{2}\s*[-–—]\s*\d{2}\/\d{2}\/\d{2}/)) {
+          context = line
+          break
+        }
+      }
+    }
+
+    if (context) {
+      // Try MM/DD/YYYY - MM/DD/YYYY (4-digit year on second date)
+      let m = context.match(/(\d\s*\d)\/(\d\s*\d)\/(\d\s*\d)\s*[-–—]\s*(\d\s*\d)\/(\d\s*\d)\/(\d{4})/)
+      if (m) {
+        const startMonthNum = parseInt(d(m[1]))
+        const startDayNum = d(m[2])
+        const startNum = `${startMonthNum.toString().padStart(2, '0')}/${startDayNum.toString().padStart(2, '0')}`
+        const endMonthNum = parseInt(d(m[4]))
+        const endDayNum = d(m[5])
+        const endNum = `${endMonthNum.toString().padStart(2, '0')}/${endDayNum.toString().padStart(2, '0')}`
+        const isCrossYear = endNum < startNum
+
+        year = isCrossYear ? d(m[6]) : d(m[3])
+        startMonthName = monthNamesRev[startMonthNum]
+        startDay = startDayNum
+        endMonthName = monthNamesRev[endMonthNum]
+        endDay = endDayNum
+        periodLinePattern = m[0]
+      }
+
+      // Try MM/DD/YY - MM/DD/YY (two-digit years on both)
+      if (!year) {
+        m = context.match(/(\d\s*\d)\/(\d\s*\d)\/(\d\s*\d)\s*[-–—]\s*(\d\s*\d)\/(\d\s*\d)\/(\d\s*\d)/)
+        if (m) {
+          const startMonthNum = parseInt(d(m[1]))
+          const startDayNum = d(m[2])
+          const startYY = d(m[3])
+          const startNum = `${startMonthNum.toString().padStart(2, '0')}/${startDayNum.toString().padStart(2, '0')}`
+
+          const endMonthNum = parseInt(d(m[4]))
+          const endDayNum = d(m[5])
+          const endYY = d(m[6])
+          const endNum = `${endMonthNum.toString().padStart(2, '0')}/${endDayNum.toString().padStart(2, '0')}`
+          const isCrossYear = endNum < startNum
+
+          year = isCrossYear ? (endYY >= 50 ? 1900 + endYY : 2000 + endYY) : (startYY >= 50 ? 1900 + startYY : 2000 + startYY)
+          startMonthName = monthNamesRev[startMonthNum]
+          startDay = startDayNum
+          endMonthName = monthNamesRev[endMonthNum]
+          endDay = endDayNum
+          periodLinePattern = m[0]
+        }
+      }
+
+      // Try MM/DD/YY - MM/DD/YYYY (mixed)
+      if (!year) {
+        m = context.match(/(\d\s*\d)\/(\d\s*\d)\/(\d\s*\d)\s*[-–—]\s*(\d\s*\d)\/(\d\s*\d)\/(\d{4})/)
+        if (m) {
+          const endMonthNum = parseInt(d(m[4]))
+          const endDayNum = d(m[5])
+          const endNum = `${endMonthNum.toString().padStart(2, '0')}/${endDayNum.toString().padStart(2, '0')}`
+          const startMonthNum = parseInt(d(m[1]))
+          const startDayNum = d(m[2])
+          const startNum = `${startMonthNum.toString().padStart(2, '0')}/${startDayNum.toString().padStart(2, '0')}`
+          const isCrossYear = endNum < startNum
+
+          year = isCrossYear ? d(m[6]) : (d(m[3]) >= 50 ? 1900 + d(m[3]) : 2000 + d(m[3]))
+          startMonthName = monthNamesRev[startMonthNum]
+          startDay = startDayNum
+          endMonthName = monthNamesRev[endMonthNum]
+          endDay = endDayNum
+          periodLinePattern = m[0]
+        }
+      }
+    }
+  }
+
   // Track current section for type inference
   let currentSection: 'deposit' | 'withdrawal' = 'withdrawal'
 
   for (const line of lines) {
+    // Skip the period line (e.g. "06/26/26 - 07/25/26")
+    if (periodLinePattern && line.includes(periodLinePattern)) continue
+
     // Track section headers for type inference
     if (/DEPOSITS\s*AND\s*ADDITIONS/i.test(line)) {
       currentSection = 'deposit'
@@ -255,12 +383,33 @@ export function parseChaseStatement(text: string): ParsedTransaction[] {
       const dateNum = `${parseInt(month).toString().padStart(2, '0')}/${parseInt(day).toString().padStart(2, '0')}`
       const startNum = `${startMonthNum.toString().padStart(2, '0')}/${startDay.toString().padStart(2, '0')}`
 
-      // Simple heuristic: if the date is before the start date, assume
-      // it's in the previous year (for cross-year statements)
       let effectiveYear = year
-      if (dateNum < startNum) {
+
+      // Check if statement spans across years (end date < start date)
+      if (endMonthName && endDay) {
+        const endMonthNum = monthNames.indexOf(endMonthName) + 1
+        const endNum = `${endMonthNum.toString().padStart(2, '0')}/${endDay.toString().padStart(2, '0')}`
+
+        if (endNum < startNum) {
+          // Cross-year statement (e.g., Dec 15 → Jan 14): year is the END year (statement year)
+          // Dates before the end date are in the statement year
+          // Dates on or after the end date are in the previous year
+          if (dateNum < endNum) {
+            effectiveYear = year
+          } else {
+            effectiveYear = year - 1
+          }
+        } else {
+          // Normal statement: if date is before start, it's in the previous year
+          if (dateNum < startNum) {
+            effectiveYear = year - 1
+          }
+        }
+      } else if (dateNum < startNum) {
+        // No end date info — fall back to original heuristic
         effectiveYear = year - 1
       }
+
       date = `${effectiveYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
     } else {
       // No period info — just use the date as-is (MM/DD)
