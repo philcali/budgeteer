@@ -8,10 +8,24 @@ import GoalsView from './views/GoalsView'
 import ImportView from './components/ImportView'
 import LocalStorageRepository from './repositories/LocalStorageRepository'
 import { useBudgetStore } from './store/useBudgetStore'
+import { registerSW } from 'virtual:pwa-register'
 
 // Import CSS
 import './index.css'
 import './App.css'
+
+// Register the service worker with automatic updates
+const updatePWA = registerSW({
+  onNeedRefresh() {
+    // A new service worker is available — prompt the user
+    if (confirm('New version available. Reload?')) {
+      updatePWA()
+    }
+  },
+  onOfflineReady() {
+    console.log('Budgeteer is ready to work offline.')
+  },
+})
 
 // Initialize repository (data loading is handled per-view)
 function AppInitializer({ children }: { children: React.ReactNode }) {
@@ -27,7 +41,7 @@ function AppInitializer({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <LayoutShell>
         <AppInitializer>
           <Routes>
