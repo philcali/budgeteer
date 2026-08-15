@@ -288,10 +288,10 @@ export function parseChaseStatement(text: string): ParsedTransaction[] {
       // Try MM/DD/YYYY - MM/DD/YYYY (4-digit year on second date)
       let m = context.match(/(\d\s*\d)\/(\d\s*\d)\/(\d\s*\d)\s*[-–—]\s*(\d\s*\d)\/(\d\s*\d)\/(\d{4})/)
       if (m) {
-        const startMonthNum = parseInt(d(m[1]))
+        const startMonthNum = d(m[1])
         const startDayNum = d(m[2])
         const startNum = `${startMonthNum.toString().padStart(2, '0')}/${startDayNum.toString().padStart(2, '0')}`
-        const endMonthNum = parseInt(d(m[4]))
+        const endMonthNum = d(m[4])
         const endDayNum = d(m[5])
         const endNum = `${endMonthNum.toString().padStart(2, '0')}/${endDayNum.toString().padStart(2, '0')}`
         const isCrossYear = endNum < startNum
@@ -308,12 +308,12 @@ export function parseChaseStatement(text: string): ParsedTransaction[] {
       if (!year) {
         m = context.match(/(\d\s*\d)\/(\d\s*\d)\/(\d\s*\d)\s*[-–—]\s*(\d\s*\d)\/(\d\s*\d)\/(\d\s*\d)/)
         if (m) {
-          const startMonthNum = parseInt(d(m[1]))
+          const startMonthNum = d(m[1])
           const startDayNum = d(m[2])
           const startYY = d(m[3])
           const startNum = `${startMonthNum.toString().padStart(2, '0')}/${startDayNum.toString().padStart(2, '0')}`
 
-          const endMonthNum = parseInt(d(m[4]))
+          const endMonthNum = d(m[4])
           const endDayNum = d(m[5])
           const endYY = d(m[6])
           const endNum = `${endMonthNum.toString().padStart(2, '0')}/${endDayNum.toString().padStart(2, '0')}`
@@ -332,10 +332,10 @@ export function parseChaseStatement(text: string): ParsedTransaction[] {
       if (!year) {
         m = context.match(/(\d\s*\d)\/(\d\s*\d)\/(\d\s*\d)\s*[-–—]\s*(\d\s*\d)\/(\d\s*\d)\/(\d{4})/)
         if (m) {
-          const endMonthNum = parseInt(d(m[4]))
+          const endMonthNum = d(m[4])
           const endDayNum = d(m[5])
           const endNum = `${endMonthNum.toString().padStart(2, '0')}/${endDayNum.toString().padStart(2, '0')}`
-          const startMonthNum = parseInt(d(m[1]))
+          const startMonthNum = d(m[1])
           const startDayNum = d(m[2])
           const startNum = `${startMonthNum.toString().padStart(2, '0')}/${startDayNum.toString().padStart(2, '0')}`
           const isCrossYear = endNum < startNum
