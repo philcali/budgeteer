@@ -34,12 +34,17 @@ class LocalStorageRepository implements DataRepository {
     const goals = this.getItem<SavingsGoal>(GOALS_KEY)
     const transactions = this.getItem<Transaction>(TRANSACTIONS_KEY)
 
-    // Derive current_amount_cents from savings transactions linked to each goal
+    // Derive current_amount_cents from savings transactions linked to each goal.
+    // Only override the stored value if there are savings transactions for the goal;
+    // otherwise preserve the stored current_amount_cents (e.g. a manually-set initial amount).
     return goals.map((goal) => {
-      const savingsTotal = transactions
+      const goalSavings = transactions
         .filter((t) => t.type === 'savings' && t.goalId === goal.id)
-        .reduce((sum, t) => sum + t.amount_cents, 0)
-      return { ...goal, current_amount_cents: savingsTotal }
+      const savingsTotal = goalSavings.reduce((sum, t) => sum + t.amount_cents, 0)
+      return {
+        ...goal,
+        current_amount_cents: goalSavings.length > 0 ? savingsTotal : goal.current_amount_cents,
+      }
     })
   }
 

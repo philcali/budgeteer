@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { DataRepository, Transaction, SavingsGoal } from '../types'
+import LocalStorageRepository from '../repositories/LocalStorageRepository'
 
 type TransactionWithoutId = Omit<Transaction, 'id'>
 type GoalWithoutId = Omit<SavingsGoal, 'id'>
@@ -36,6 +37,13 @@ interface BudgetState {
 
 let repository: DataRepository | null = null
 
+function initRepository(): DataRepository {
+  if (!repository) {
+    repository = new LocalStorageRepository()
+  }
+  return repository
+}
+
 export const useBudgetStore = create<BudgetState>((set, get) => ({
   transactions: [],
   goals: [],
@@ -47,6 +55,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
   },
 
   fetchTransactions: async () => {
+    initRepository()
     if (!repository) return
     set({ isLoading: true, error: null })
     try {
@@ -114,6 +123,7 @@ export const useBudgetStore = create<BudgetState>((set, get) => ({
   },
 
   fetchGoals: async () => {
+    initRepository()
     if (!repository) return
     set({ isLoading: true, error: null })
     try {
